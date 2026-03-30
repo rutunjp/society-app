@@ -18,13 +18,14 @@ const navItems = [
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
 ]
 
+import { signOut } from "next-auth/react"
+
 export default function Nav() {
   const pathname = usePathname()
   const router = useRouter()
 
   async function handleLogout() {
-    await fetch("/api/auth", { method: "DELETE" })
-    router.push("/login")
+    await signOut({ callbackUrl: "/login" })
   }
 
   return (
