@@ -47,6 +47,22 @@ export async function appendRow(sheetName: string, row: string[]): Promise<void>
   })
 }
 
+// Appends multiple rows to the sheet in a single batch request
+export async function appendRows(sheetName: string, rows: string[][]): Promise<void> {
+  const auth = getAuth()
+  const sheets = google.sheets({ version: "v4", auth })
+  const spreadsheetId = getSheetId()
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetName}!A1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: rows,
+    },
+  })
+}
+
 // Updates a specific row by its 0-based data index (NOT the sheet row number)
 // dataIndex 0 = sheet row 2 (row 1 is header)
 export async function updateRow(

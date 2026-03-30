@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import Papa from "papaparse"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
@@ -18,6 +19,8 @@ export default function MembersPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -65,6 +68,40 @@ export default function MembersPage() {
     }
   }
 
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    toast.loading("Processing CSV...", { id: "csv-upload" })
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        try {
+          const res = await fetch("/api/members/bulk", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ members: results.data }),
+          })
+          const data = await res.json()
+          if (data.success) {
+            fetchMembers()
+            toast.success("Bulk members imported successfully!", { id: "csv-upload" })
+          } else {
+            toast.error(data.error || "Failed to import members", { id: "csv-upload" })
+          }
+        } catch {
+          toast.error("Network error during import", { id: "csv-upload" })
+        }
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      },
+      error: (err: any) => {
+        toast.error(`CSV Parsing error: ${err.message}`, { id: "csv-upload" })
+        if (fileInputRef.current) fileInputRef.current.value = ""
+      }
+    })
+  }
+
   function confirmDelete(id: string) {
     setDeleteId(id)
   }
@@ -97,12 +134,28 @@ export default function MembersPage() {
           title="Members"
           subtitle={`${members.length} registered members`}
           action={
-            <button
-              onClick={openModal}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              + Add Member
-            </button>
+            <div className="flex gap-2">
+              <input 
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                title="Expects CSV with headers: name, flat_no, phone, email, type"
+              >
+                Import CSV
+              </button>
+              <button
+                onClick={openModal}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                + Add Member
+              </button>
+            </div>
           }
         />
 
