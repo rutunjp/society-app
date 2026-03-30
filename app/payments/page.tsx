@@ -130,7 +130,6 @@ export default function PaymentsPage() {
     }
 
     toast.loading("Generating receipt PDF...", { id: "receipt" })
-
     try {
       const pdf = await generateReceiptPDF({
         receiptNo: p.id,
@@ -140,27 +139,23 @@ export default function PaymentsPage() {
         amount: p.amount,
         paymentType: p.type,
         eventName: p.type === "event" ? getEventName(p.event_id) : undefined,
-        receivedBy: "Committee"
+        receivedBy: "Committee",
       })
+      // Download the PDF first
+      pdf.save(`Receipt_${p.id}.pdf`)
+      toast.dismiss("receipt")
+      toast.success("Receipt downloaded. Preparing WhatsApp message…")
 
-      const pdfBlob = pdf.output("blob")
-      const pdfFile = new File([pdfBlob], `Receipt_${p.id}.pdf`, { type: "application/pdf" })
+      // Build WhatsApp message
+      const typeLabel = p.type === "event" ? getEventName(p.event_id) : "Maintenance"
+      const text = `Hello ${member.name},\n\nThis is a confirmation that we have received your payment of ₹${p.amount.toLocaleString("en-IN")} towards ${typeLabel} on ${p.date}.\n\n*This is an electronically generated receipt.*\n\nYou can find the PDF receipt attached to this message.\n\nThank you!\nSocietyApp Committee`
 
-      // Check if sharing is supported for files
-      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-        await navigator.share({
-          files: [pdfFile],
-          title: `Payment Receipt #${p.id}`,
-          text: `Hi ${member.name}, here is your receipt for the payment of ₹${p.amount.toLocaleString("en-IN")}.`
-        })
-        toast.dismiss("receipt")
-        toast.success("Receipt ready to share!")
-      } else {
-        // Fallback for desktop: download and toast
-        pdf.save(`Receipt_${p.id}.pdf`)
-        toast.dismiss("receipt")
-        toast.success("Receipt downloaded. You can now share it manually.")
+      let phoneNum = member.phone?.replace(/\D/g, "") || ""
+      if (phoneNum.length === 10) {
+        phoneNum = `91${phoneNum}`
       }
+      const url = `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`
+      window.open(url, "_blank")
     } catch {
       toast.error("Error generating PDF", { id: "receipt" })
     }
