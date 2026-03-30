@@ -5,10 +5,11 @@ import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import { TrashIcon } from "@heroicons/react/24/outline"
+import { TrashIcon, ShareIcon } from "@heroicons/react/24/outline"
 import StatusBadge from "@/components/StatusBadge"
 import { Payment, Member, Event } from "@/types"
 import { toast } from "react-hot-toast"
+import { generateReceiptPDF } from "@/lib/pdf-generator"
 
 const EMPTY_FORM = {
   member_id: "",
@@ -118,6 +119,50 @@ export default function PaymentsPage() {
     return e ? e.name : "—"
   }
 
+  async function handleShareReceipt(p: Payment) {
+    const member = members.find((m) => m.id === p.member_id)
+    if (!member) {
+      toast.error("Member details not found")
+      return
+    }
+
+    toast.loading("Generating receipt PDF...", { id: "receipt" })
+
+    try {
+      const pdf = await generateReceiptPDF({
+        receiptNo: p.id,
+        date: p.date,
+        memberName: member.name,
+        flatNo: member.flat_no,
+        amount: p.amount,
+        paymentType: p.type,
+        eventName: p.type === "event" ? getEventName(p.event_id) : undefined,
+        receivedBy: "Committee"
+      })
+
+      const pdfBlob = pdf.output("blob")
+      const pdfFile = new File([pdfBlob], `Receipt_${p.id}.pdf`, { type: "application/pdf" })
+
+      // Check if sharing is supported for files
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          files: [pdfFile],
+          title: `Payment Receipt #${p.id}`,
+          text: `Hi ${member.name}, here is your receipt for the payment of ₹${p.amount.toLocaleString("en-IN")}.`
+        })
+        toast.dismiss("receipt")
+        toast.success("Receipt ready to share!")
+      } else {
+        // Fallback for desktop: download and toast
+        pdf.save(`Receipt_${p.id}.pdf`)
+        toast.dismiss("receipt")
+        toast.success("Receipt downloaded. You can now share it manually.")
+      }
+    } catch {
+      toast.error("Error generating PDF", { id: "receipt" })
+    }
+  }
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
       <Nav />
@@ -170,9 +215,21 @@ export default function PaymentsPage() {
                     </td>
                     <td className="px-4 py-3">{p.date}</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => confirmDelete(p.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
-                        <TrashIcon className="w-5 h-5 inline-block" />
-                      </button>
+                      <div className="flex items-center justify-end gap-3">
+                        {p.status === "paid" && (
+                          <button
+                            onClick={() => handleShareReceipt(p)}
+                            title="Share Receipt (WhatsApp)"
+                            className="text-green-600 hover:text-green-800 transition"
+                            aria-label="Share WhatsApp"
+                          >
+                            <ShareIcon className="w-5 h-5 inline-block" />
+                          </button>
+                        )}
+                        <button onClick={() => confirmDelete(p.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
+                          <TrashIcon className="w-5 h-5 inline-block" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
