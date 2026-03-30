@@ -9,7 +9,7 @@ import { TrashIcon, ShareIcon } from "@heroicons/react/24/outline"
 import StatusBadge from "@/components/StatusBadge"
 import { Payment, Member, Event } from "@/types"
 import { toast } from "react-hot-toast"
-import { generateReceiptPDF } from "@/lib/pdf-generator"
+import { generateReceiptImage } from "@/lib/pdf-generator"
 
 const EMPTY_FORM = {
   member_id: "",
@@ -129,9 +129,9 @@ export default function PaymentsPage() {
       return
     }
 
-    toast.loading("Generating receipt PDF...", { id: "receipt" })
+    toast.loading("Generating receipt image...", { id: "receipt" })
     try {
-      const pdf = await generateReceiptPDF({
+      const blob = await generateReceiptImage({
         receiptNo: p.id,
         date: p.date,
         memberName: member.name,
@@ -141,25 +141,32 @@ export default function PaymentsPage() {
         eventName: p.type === "event" ? getEventName(p.event_id) : undefined,
         receivedBy: "Committee",
       })
-      // Download the PDF first
-      pdf.save(`Receipt_${p.id}.pdf`)
+
+      // Download the JPEG image
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `Receipt_${p.id}.jpg`
+      a.click()
+      URL.revokeObjectURL(url)
+
       toast.dismiss("receipt")
-      toast.success("Receipt downloaded. Preparing WhatsApp message…")
+      toast.success("Receipt image downloaded. Preparing WhatsApp message…")
 
       // Build WhatsApp message
       const typeLabel = p.type === "event" ? getEventName(p.event_id) : "Maintenance"
-      const text = `Hello ${member.name},\n\nThis is a confirmation that we have received your payment of ₹${p.amount.toLocaleString("en-IN")} towards ${typeLabel} on ${p.date}.\n\n*This is an electronically generated receipt.*\n\nYou can find the PDF receipt attached to this message.\n\nThank you!\nSocietyApp Committee`
+      const text = `Hello ${member.name},\n\nThis is a confirmation that we have received your payment of ₹${p.amount.toLocaleString("en-IN")} towards ${typeLabel} on ${p.date}.\n\n*This is an electronically generated receipt.*\n\nPlease find the receipt image attached to this message.\n\nThank you!\nSocietyApp Committee`
 
       let phoneNum = member.phone?.replace(/\D/g, "") || ""
       if (phoneNum.length === 10) {
         phoneNum = `91${phoneNum}`
       }
-      const url = `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`
-      window.open(url, "_blank")
+      window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, "_blank")
     } catch {
-      toast.error("Error generating PDF", { id: "receipt" })
+      toast.error("Error generating receipt image", { id: "receipt" })
     }
   }
+
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
