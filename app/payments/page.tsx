@@ -46,7 +46,10 @@ export default function PaymentsPage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => {
+    document.title = "Payments | SocietyApp"
+    fetchData()
+  }, [])
 
   function openModal() {
     setForm({ ...EMPTY_FORM })
