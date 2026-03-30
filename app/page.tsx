@@ -1,101 +1,115 @@
-import Image from "next/image";
+"use client"
+import { useEffect, useState } from "react"
+import Nav from "@/components/Nav"
+import { Member, Payment, Event, Expense } from "@/types"
 
-export default function Home() {
+interface StatCardProps {
+  label: string
+  value: string | number
+  sub?: string
+  color: string
+}
+
+function StatCard({ label, value, sub, color }: StatCardProps) {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <p className="text-sm text-gray-500">{label}</p>
+      <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    </div>
+  )
+}
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+export default function DashboardPage() {
+  const [members, setMembers] = useState<Member[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [events, setEvents] = useState<Event[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/members").then((r) => r.json()),
+      fetch("/api/payments").then((r) => r.json()),
+      fetch("/api/events").then((r) => r.json()),
+      fetch("/api/expenses").then((r) => r.json()),
+    ]).then(([m, p, e, ex]) => {
+      if (m.success) setMembers(m.data)
+      if (p.success) setPayments(p.data)
+      if (e.success) setEvents(e.data)
+      if (ex.success) setExpenses(ex.data)
+    })
+  }, [])
+
+  const totalCollected = payments
+    .filter((p) => p.status === "paid")
+    .reduce((sum, p) => sum + p.amount, 0)
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0)
+
+  return (
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
+      <Nav />
+      <main className="flex-1 p-4 md:p-8 overflow-hidden">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Society overview at a glance</p>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard label="Total Members" value={members.length} sub="registered flats" color="text-indigo-600" />
+          <StatCard
+            label="Amount Collected"
+            value={`₹${totalCollected.toLocaleString("en-IN")}`}
+            sub="paid payments"
+            color="text-green-600"
+          />
+          <StatCard label="Events" value={events.length} sub="festivals & drives" color="text-orange-600" />
+          <StatCard
+            label="Total Expenses"
+            value={`₹${totalExpenses.toLocaleString("en-IN")}`}
+            sub="across all events"
+            color="text-red-600"
+          />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">Recent Payments</h2>
+          {payments.length === 0 ? (
+            <p className="text-sm text-gray-400">No payments recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[500px]">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b">
+                    <th className="pb-2 font-medium">Member ID</th>
+                    <th className="pb-2 font-medium">Type</th>
+                    <th className="pb-2 font-medium">Amount</th>
+                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {payments.slice(-5).reverse().map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2 text-gray-600">{p.member_id}</td>
+                      <td className="py-2 capitalize text-gray-600">{p.type}</td>
+                      <td className="py-2 text-gray-900 font-medium">₹{p.amount.toLocaleString("en-IN")}</td>
+                      <td className="py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          p.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-2 text-gray-500">{p.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
-  );
+  )
 }
