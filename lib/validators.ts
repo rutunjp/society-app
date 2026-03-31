@@ -102,11 +102,12 @@ export async function validateExpense(data: {
   title?: string
   amount?: number | string
   notes?: string
+  category?: string
 }): Promise<string | null> {
-  const { event_id, title, amount } = data
+  const { event_id, title, amount, category } = data
 
-  if (!event_id || !title || !amount) {
-    return "All fields are required: event_id, title, amount"
+  if (!event_id || !title || !amount || !category) {
+    return "All fields are required: event_id, title, amount, category"
   }
 
   if (Number(amount) <= 0) {

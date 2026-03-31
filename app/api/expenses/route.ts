@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAllRows, appendRow, getNextId, deleteRow } from "@/lib/sheets"
+import { getAllRows, appendRow, getNextId, deleteRow, updateRow } from "@/lib/sheets"
 import { validateExpense } from "@/lib/validators"
 import { Expense } from "@/types"
 
@@ -10,6 +10,7 @@ function rowToExpense(row: string[]): Expense {
     title: row[2] || "",
     amount: parseFloat(row[3]) || 0,
     notes: row[4] || "",
+    category: row[5] || "",
   }
 }
 
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
       body.title,
       String(body.amount),
       body.notes || "",
+      body.category || "",
     ]
     await appendRow("Expenses", row)
 
@@ -48,8 +50,43 @@ export async function POST(req: NextRequest) {
       title: body.title,
       amount: Number(body.amount),
       notes: body.notes || "",
+      category: body.category || "",
     }
     return NextResponse.json({ success: true, data: expense }, { status: 201 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error"
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json()
+    const { id, title, amount, notes, category } = body
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "ID required for update" }, { status: 400 })
+    }
+
+    const rows = await getAllRows("Expenses")
+    const dataIndex = rows.findIndex((row) => row[0] === id)
+    if (dataIndex === -1) {
+      return NextResponse.json({ success: false, error: "Expense not found" }, { status: 404 })
+    }
+
+    const row = [...rows[dataIndex]]
+    // Ensure row has enough columns
+    while (row.length < 6) row.push("")
+
+    if (title !== undefined) row[2] = title
+    if (amount !== undefined) row[3] = String(amount)
+    if (notes !== undefined) row[4] = notes
+    if (category !== undefined) row[5] = category
+
+    await updateRow("Expenses", dataIndex, row)
+
+    const updatedExpense = rowToExpense(row)
+    return NextResponse.json({ success: true, data: updatedExpense })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error"
     return NextResponse.json({ success: false, error: msg }, { status: 500 })
