@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   UsersIcon,
   CurrencyRupeeIcon,
@@ -22,7 +22,6 @@ import { signOut } from "next-auth/react"
 
 export default function Nav() {
   const pathname = usePathname()
-  const router = useRouter()
 
   async function handleLogout() {
     await signOut({ callbackUrl: "/login" })

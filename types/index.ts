@@ -30,6 +30,7 @@ export interface Expense {
   title: string
   amount: number
   notes: string
+  category: string
 }
 
 // API response wrappers

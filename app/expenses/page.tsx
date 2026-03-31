@@ -5,19 +5,42 @@ import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import { TrashIcon } from "@heroicons/react/24/outline"
+import { TrashIcon, PencilSquareIcon } from "@heroicons/react/24/outline"
 import { Expense, Event } from "@/types"
 import { toast } from "react-hot-toast"
 
-const EMPTY_FORM = { event_id: "", title: "", amount: "", notes: "" }
+const EXPENSE_CATEGORIES = [
+  "Food & Catering",
+  "Decoration",
+  "Entertainment/DJ",
+  "Labor/Vendor",
+  "Logistics/Rentals",
+  "Utilities",
+  "Other"
+]
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [filterEventId, setFilterEventId] = useState("")
+  const [filterCategory, setFilterCategory] = useState("All")
+  
+  // Modal state
   const [modalOpen, setModalOpen] = useState(false)
-  const [form, setForm] = useState({ ...EMPTY_FORM })
+  const [editMode, setEditMode] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  
+  // Form state
+  // use a generic object for form to handle string inputs before conversion
+  const [form, setForm] = useState({ 
+    event_id: "", 
+    title: "", 
+    amount: "", 
+    notes: "", 
+    category: EXPENSE_CATEGORIES[0] 
+  })
+  
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
@@ -37,8 +60,30 @@ export default function ExpensesPage() {
 
   useEffect(() => { fetchData() }, [])
 
-  function openModal() {
-    setForm({ ...EMPTY_FORM })
+  function openAddModal() {
+    setForm({ 
+      event_id: "", 
+      title: "", 
+      amount: "", 
+      notes: "", 
+      category: EXPENSE_CATEGORIES[0] 
+    })
+    setEditMode(false)
+    setEditingId(null)
+    setError("")
+    setModalOpen(true)
+  }
+
+  function openEditModal(expense: Expense) {
+    setForm({
+      event_id: expense.event_id,
+      title: expense.title,
+      amount: String(expense.amount),
+      notes: expense.notes || "",
+      category: expense.category || EXPENSE_CATEGORIES[0]
+    })
+    setEditMode(true)
+    setEditingId(expense.id)
     setError("")
     setModalOpen(true)
   }
@@ -47,20 +92,29 @@ export default function ExpensesPage() {
     e.preventDefault()
     setSubmitting(true)
     setError("")
+    
     try {
+      const payload = {
+        id: editMode ? editingId : undefined,
+        ...form,
+        amount: Number(form.amount)
+      }
+
+      const method = editMode ? "PATCH" : "POST"
+
       const res = await fetch("/api/expenses", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+        body: JSON.stringify(payload),
       })
       const data = await res.json()
       if (data.success) {
         setModalOpen(false)
         fetchData()
-        toast.success("Expense added successfully")
+        toast.success(editMode ? "Expense updated!" : "Expense added!")
       } else {
-        setError(data.error || "Failed to add expense")
-        toast.error(data.error || "Failed to add expense")
+        setError(data.error || "Failed to save expense")
+        toast.error(data.error || "Failed to save expense")
       }
     } catch {
       setError("Network error")
@@ -98,11 +152,26 @@ export default function ExpensesPage() {
     return events.find((e) => e.id === id)?.name || id
   }
 
-  const filtered = filterEventId
-    ? expenses.filter((ex) => ex.event_id === filterEventId)
-    : expenses
+  const filtered = expenses.filter(ex => {
+    if (filterEventId && ex.event_id !== filterEventId) return false
+    if (filterCategory !== "All" && ex.category !== filterCategory) return false
+    return true
+  })
 
   const totalFiltered = filtered.reduce((sum, ex) => sum + ex.amount, 0)
+
+  // Determine badge color based on category
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "Food & Catering": return "bg-orange-100 text-orange-800"
+      case "Decoration": return "bg-pink-100 text-pink-800"
+      case "Entertainment/DJ": return "bg-purple-100 text-purple-800"
+      case "Labor/Vendor": return "bg-blue-100 text-blue-800"
+      case "Logistics/Rentals": return "bg-cyan-100 text-cyan-800"
+      case "Utilities": return "bg-yellow-100 text-yellow-800"
+      default: return "bg-gray-100 text-gray-800"
+    }
+  }
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
@@ -113,7 +182,7 @@ export default function ExpensesPage() {
           subtitle="Track spending across events"
           action={
             <button
-              onClick={openModal}
+              onClick={openAddModal}
               className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
               + Add Expense
@@ -121,7 +190,7 @@ export default function ExpensesPage() {
           }
         />
 
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
           <select
             value={filterEventId}
             onChange={(e) => setFilterEventId(e.target.value)}
@@ -132,8 +201,20 @@ export default function ExpensesPage() {
                <option key={ev.id} value={ev.id}>{ev.name}</option>
             ))}
           </select>
-          {filterEventId && (
-            <span className="text-sm text-gray-500">
+          
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+          >
+            <option value="All">All Categories</option>
+            {EXPENSE_CATEGORIES.map((cat) => (
+               <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+
+          {(filterEventId || filterCategory !== "All") && (
+            <span className="text-sm text-gray-500 ml-auto">
               Total: <strong className="text-gray-900">₹{totalFiltered.toLocaleString("en-IN")}</strong>
             </span>
           )}
@@ -146,10 +227,11 @@ export default function ExpensesPage() {
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm min-w-[700px]">
+              <table className="w-full text-sm min-w-[800px]">
                 <thead className="bg-gray-50">
                 <tr className="text-left text-gray-500">
                   <th className="px-4 py-3 font-medium">Event</th>
+                  <th className="px-4 py-3 font-medium">Category</th>
                   <th className="px-4 py-3 font-medium">Title</th>
                   <th className="px-4 py-3 font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Notes</th>
@@ -160,15 +242,33 @@ export default function ExpensesPage() {
                 {filtered.map((ex) => (
                   <tr key={ex.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-indigo-700 font-medium">{getEventName(ex.event_id)}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCategoryColor(ex.category)}`}>
+                        {ex.category || "Uncategorized"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-gray-900">{ex.title}</td>
                     <td className="px-4 py-3 font-semibold text-red-600">
                       ₹{ex.amount.toLocaleString("en-IN")}
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{ex.notes || "—"}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{ex.notes || "—"}</td>
                     <td className="px-4 py-3 text-right">
-                      <button onClick={() => confirmDelete(ex.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
-                        <TrashIcon className="w-5 h-5 inline-block" />
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => openEditModal(ex)} 
+                          className="text-gray-400 hover:text-indigo-600 transition" 
+                          aria-label="Edit"
+                        >
+                          <PencilSquareIcon className="w-5 h-5 inline-block" />
+                        </button>
+                        <button 
+                          onClick={() => confirmDelete(ex.id)} 
+                          className="text-gray-400 hover:text-red-600 transition" 
+                          aria-label="Delete"
+                        >
+                          <TrashIcon className="w-5 h-5 inline-block" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -178,7 +278,7 @@ export default function ExpensesPage() {
           </div>
         )}
 
-        <Modal title="Add Expense" open={modalOpen} onClose={() => setModalOpen(false)}>
+        <Modal title={editMode ? "Edit Expense" : "Add Expense"} open={modalOpen} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Event</label>
@@ -186,7 +286,8 @@ export default function ExpensesPage() {
                 value={form.event_id}
                 onChange={(e) => setForm({ ...form, event_id: e.target.value })}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={editMode}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100"
               >
                 <option value="">Select event...</option>
                 {events.map((ev) => (
@@ -194,11 +295,26 @@ export default function ExpensesPage() {
                 ))}
               </select>
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {EXPENSE_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
               <input
                 type="text"
-                placeholder="Decoration, DJ, Catering..."
+                placeholder="Dinner plates, Generator hire..."
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
@@ -245,7 +361,7 @@ export default function ExpensesPage() {
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
-                {submitting ? "Saving..." : "Add Expense"}
+                {submitting ? "Saving..." : editMode ? "Update Expense" : "Add Expense"}
               </button>
             </div>
           </form>
