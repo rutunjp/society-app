@@ -8,11 +8,13 @@ import {
   ReceiptPercentIcon,
   HomeIcon,
   ArrowRightOnRectangleIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: HomeIcon },
   { href: "/members", label: "Members", icon: UsersIcon },
+  { href: "/maintenance", label: "Maintenance", icon: BanknotesIcon },
   { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },

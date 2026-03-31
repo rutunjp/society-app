@@ -37,8 +37,10 @@ export async function validatePayment(data: {
   amount?: number | string
   status?: string
   date?: string
+  period?: string
+  payment_mode?: string
 }): Promise<string | null> {
-  const { member_id, type, event_id, amount, status, date } = data
+  const { member_id, type, event_id, amount, status, date, period, payment_mode } = data
 
   if (!member_id || !type || !amount || !status || !date) {
     return "All fields are required: member_id, type, amount, status, date"
@@ -48,8 +50,16 @@ export async function validatePayment(data: {
     return "type must be 'maintenance' or 'event'"
   }
 
+  if (type === "maintenance" && !period) {
+    return "period is required for maintenance payments (e.g. '2025-26')"
+  }
+
   if (type === "event" && !event_id) {
     return "event_id is required when type is 'event'"
+  }
+
+  if (payment_mode && !["cash", "online", "upi", "cheque"].includes(payment_mode)) {
+    return "payment_mode must be 'cash', 'online', 'upi', or 'cheque'"
   }
 
   if (Number(amount) <= 0) {
