@@ -1,15 +1,20 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
+import ReceiptPreview from "@/components/ReceiptPreview"
 import { TrashIcon, ShareIcon } from "@heroicons/react/24/outline"
 import StatusBadge from "@/components/StatusBadge"
 import { Payment, Member, Event } from "@/types"
 import { toast } from "react-hot-toast"
-import { generateReceiptImage } from "@/lib/pdf-generator"
+import {
+  getCurrentFinancialYear,
+  getFinancialYears,
+  PAYMENT_MODES,
+} from "@/lib/society-config"
 
 const EMPTY_FORM = {
   member_id: "",
@@ -18,6 +23,8 @@ const EMPTY_FORM = {
   amount: "",
   status: "paid",
   date: new Date().toISOString().split("T")[0],
+  period: getCurrentFinancialYear(),
+  payment_mode: "upi",
 }
 
 export default function PaymentsPage() {
@@ -32,6 +39,17 @@ export default function PaymentsPage() {
 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  // Filters
+  const [filterType, setFilterType] = useState<"all" | "maintenance" | "event">("all")
+  const [filterPeriod, setFilterPeriod] = useState<string>("all")
+  const financialYears = useMemo(() => getFinancialYears(), [])
+
+  // Receipt preview
+  const [receiptPayment, setReceiptPayment] = useState<{
+    payment: Payment
+    member: Member
+  } | null>(null)
 
   async function fetchData() {
     setLoading(true)
@@ -51,6 +69,18 @@ export default function PaymentsPage() {
     fetchData()
   }, [])
 
+  // Filtered payments
+  const filteredPayments = useMemo(() => {
+    let result = [...payments]
+    if (filterType !== "all") {
+      result = result.filter((p) => p.type === filterType)
+    }
+    if (filterPeriod !== "all") {
+      result = result.filter((p) => p.period === filterPeriod)
+    }
+    return result.reverse()
+  }, [payments, filterType, filterPeriod])
+
   function openModal() {
     setForm({ ...EMPTY_FORM })
     setError("")
@@ -69,6 +99,7 @@ export default function PaymentsPage() {
           ...form,
           amount: Number(form.amount),
           event_id: form.type === "event" ? form.event_id : "",
+          period: form.type === "maintenance" ? form.period : "",
         }),
       })
       const data = await res.json()
@@ -122,51 +153,14 @@ export default function PaymentsPage() {
     return e ? e.name : "—"
   }
 
-  async function handleShareReceipt(p: Payment) {
+  function handleShareReceipt(p: Payment) {
     const member = members.find((m) => m.id === p.member_id)
     if (!member) {
       toast.error("Member details not found")
       return
     }
-
-    toast.loading("Generating receipt image...", { id: "receipt" })
-    try {
-      const blob = await generateReceiptImage({
-        receiptNo: p.id,
-        date: p.date,
-        memberName: member.name,
-        flatNo: member.flat_no,
-        amount: p.amount,
-        paymentType: p.type,
-        eventName: p.type === "event" ? getEventName(p.event_id) : undefined,
-        receivedBy: "Committee",
-      })
-
-      // Download the JPEG image
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `Receipt_${p.id}.jpg`
-      a.click()
-      URL.revokeObjectURL(url)
-
-      toast.dismiss("receipt")
-      toast.success("Receipt image downloaded. Preparing WhatsApp message…")
-
-      // Build WhatsApp message
-      const typeLabel = p.type === "event" ? getEventName(p.event_id) : "Maintenance"
-      const text = `Hello ${member.name},\n\nThis is a confirmation that we have received your payment of ₹${p.amount.toLocaleString("en-IN")} towards ${typeLabel} on ${p.date}.\n\n*This is an electronically generated receipt.*\n\nPlease find the receipt image attached to this message.\n\nThank you!\nSocietyApp Committee`
-
-      let phoneNum = member.phone?.replace(/\D/g, "") || ""
-      if (phoneNum.length === 10) {
-        phoneNum = `91${phoneNum}`
-      }
-      window.open(`https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`, "_blank")
-    } catch {
-      toast.error("Error generating receipt image", { id: "receipt" })
-    }
+    setReceiptPayment({ payment: p, member })
   }
-
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
@@ -174,7 +168,7 @@ export default function PaymentsPage() {
       <main className="flex-1 p-4 md:p-8 overflow-hidden items-stretch">
         <PageHeader
           title="Payments"
-          subtitle={`${payments.length} payment records`}
+          subtitle={`${filteredPayments.length} payment records`}
           action={
             <button
               onClick={openModal}
@@ -185,10 +179,37 @@ export default function PaymentsPage() {
           }
         />
 
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <select
+            value={filterType}
+            onChange={(e) =>
+              setFilterType(e.target.value as "all" | "maintenance" | "event")
+            }
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Types</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="event">Event</option>
+          </select>
+          <select
+            value={filterPeriod}
+            onChange={(e) => setFilterPeriod(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="all">All Periods</option>
+            {financialYears.map((fy) => (
+              <option key={fy} value={fy}>
+                FY {fy}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {loading ? (
           <LoadingSpinner />
-        ) : payments.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">No payments recorded yet</div>
+        ) : filteredPayments.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">No payments found</div>
         ) : (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
@@ -197,20 +218,25 @@ export default function PaymentsPage() {
                 <tr className="text-left text-gray-500">
                   <th className="px-4 py-3 font-medium">Member</th>
                   <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Event</th>
+                  <th className="px-4 py-3 font-medium">Event / Period</th>
                   <th className="px-4 py-3 font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium">Date</th>
+                  <th className="px-4 py-3 font-medium">Mode</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {[...payments].reverse().map((p) => (
+                {filteredPayments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-900">{getMemberName(p.member_id)}</td>
                     <td className="px-4 py-3 capitalize text-gray-600">{p.type}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      {p.type === "event" ? getEventName(p.event_id) : "—"}
+                      {p.type === "event"
+                        ? getEventName(p.event_id)
+                        : p.period
+                        ? `FY ${p.period}`
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 font-semibold text-gray-900">
                       ₹{p.amount.toLocaleString("en-IN")}
@@ -219,12 +245,15 @@ export default function PaymentsPage() {
                       <StatusBadge status={p.status} />
                     </td>
                     <td className="px-4 py-3">{p.date}</td>
+                    <td className="px-4 py-3 text-gray-600 capitalize">
+                      {p.payment_mode || "—"}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-3">
                         {p.status === "paid" && (
                           <button
                             onClick={() => handleShareReceipt(p)}
-                            title="Share Receipt (WhatsApp)"
+                            title="View & Share Receipt"
                             className="text-green-600 hover:text-green-800 transition"
                             aria-label="Share WhatsApp"
                           >
@@ -294,6 +323,24 @@ export default function PaymentsPage() {
               </div>
             )}
 
+            {form.type === "maintenance" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Period (Financial Year)</label>
+                <select
+                  value={form.period}
+                  onChange={(e) => setForm({ ...form, period: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {financialYears.map((fy) => (
+                    <option key={fy} value={fy}>
+                      FY {fy}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
               <input
@@ -305,6 +352,21 @@ export default function PaymentsPage() {
                 min={1}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
+              <select
+                value={form.payment_mode}
+                onChange={(e) => setForm({ ...form, payment_mode: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {PAYMENT_MODES.map((pm) => (
+                  <option key={pm.value} value={pm.value}>
+                    {pm.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -361,6 +423,30 @@ export default function PaymentsPage() {
           onCancel={() => setDeleteId(null)}
           loading={deleting}
         />
+
+        {/* Receipt Preview */}
+        {receiptPayment && (
+          <ReceiptPreview
+            open={true}
+            onClose={() => setReceiptPayment(null)}
+            phoneNumber={receiptPayment.member.phone}
+            receiptData={{
+              receiptNo: receiptPayment.payment.id,
+              date: receiptPayment.payment.date,
+              memberName: receiptPayment.member.name,
+              flatNo: receiptPayment.member.flat_no,
+              amount: receiptPayment.payment.amount,
+              paymentType: receiptPayment.payment.type,
+              eventName:
+                receiptPayment.payment.type === "event"
+                  ? getEventName(receiptPayment.payment.event_id)
+                  : undefined,
+              period: receiptPayment.payment.period,
+              paymentMode: receiptPayment.payment.payment_mode,
+              receivedBy: "Committee",
+            }}
+          />
+        )}
       </main>
     </div>
   )

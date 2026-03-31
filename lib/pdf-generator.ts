@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas"
+import { SOCIETY_CONFIG } from "./society-config"
 
 export interface ReceiptData {
   receiptNo: string
@@ -8,12 +9,35 @@ export interface ReceiptData {
   amount: number
   paymentType: string
   eventName?: string
+  period?: string
+  paymentMode?: string
   receivedBy: string
 }
 
 /** Generates a JPEG blob of the payment receipt */
 export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
+  const config = SOCIETY_CONFIG
   const typeLabel = data.paymentType === "event" ? data.eventName : "Maintenance"
+  const periodStr = data.period ? ` (FY ${data.period})` : ""
+  const modeStr = data.paymentMode
+    ? data.paymentMode.charAt(0).toUpperCase() + data.paymentMode.slice(1)
+    : "Cash / Online"
+
+  // Receipt number format: SWATI/2025-26/001
+  const receiptNo = data.period
+    ? `${config.logo}/${data.period}/${data.receiptNo.padStart(3, "0")}`
+    : `#${data.receiptNo}`
+
+  // Build governing body HTML
+  const govBodyHtml = config.governingBody
+    .map(
+      (m) => `<p style="margin: 4px 0;"><i>${m.role}</i><br><b>${m.name}</b></p>`
+    )
+    .join("")
+
+  const execMembersHtml = config.executiveMembers
+    .map((name) => `<p style="margin: 3px 0;"><b>${name}</b></p>`)
+    .join("")
 
   const wrapper = document.createElement("div")
   wrapper.style.cssText = "position:absolute;top:0;left:0;width:0;height:0;overflow:hidden;"
@@ -34,39 +58,26 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
     <div style="border: 2px solid #eee; padding: 20px; position: relative; min-height: 960px;">
       <!-- Header -->
       <div style="text-align: center; border-bottom: 2px solid #fecaca; padding-bottom: 10px; margin-bottom: 20px;">
-        <h1 style="color: #0ea5e9; font-size: 26px; margin: 0; font-family: sans-serif;">Swati Society House Owners Association</h1>
-        <h2 style="color: #0ea5e9; font-size: 18px; margin: 5px 0; font-family: sans-serif;">A &amp; B - Blocks</h2>
-        <p style="color: #0ea5e9; font-size: 13px; margin: 5px 0; font-weight: bold;">Next to Sama Sports Complex, New Sama Road, Sama, Vadodara – 390 024</p>
-        <p style="color: #7c3aed; font-size: 12px; margin: 0;">e-mail: swatisociety@gmail.com</p>
+        <h1 style="color: #0ea5e9; font-size: 26px; margin: 0; font-family: sans-serif;">${config.name}</h1>
+        <h2 style="color: #0ea5e9; font-size: 18px; margin: 5px 0; font-family: sans-serif;">${config.subtitle}</h2>
+        <p style="color: #0ea5e9; font-size: 13px; margin: 5px 0; font-weight: bold;">${config.address}</p>
+        <p style="color: #7c3aed; font-size: 12px; margin: 0;">e-mail: ${config.email}</p>
       </div>
 
       <div style="display: flex;">
         <!-- Left Sidebar -->
         <div style="width: 190px; border-right: 1px solid #fecaca; padding-right: 14px; font-size: 11px; line-height: 1.5;">
           <h3 style="color: #ef4444; font-size: 13px; margin-bottom: 4px;">Governing Body</h3>
-          <p style="margin: 4px 0;"><i>President</i><br><b>M S Kapoor</b></p>
-          <p style="margin: 4px 0;"><i>Vice-President</i><br><b>H K Parmar</b></p>
-          <p style="margin: 4px 0;"><i>Secretary</i><br><b>B J Mahida</b></p>
-          <p style="margin: 4px 0;"><i>Asst. Secretary</i><br><b>M J Shah</b></p>
-          <p style="margin: 4px 0;"><i>Treasurer</i><br><b>A S Pandya</b></p>
-          <p style="margin: 4px 0;"><i>Asst Treasurer</i><br><b>K V Solanki</b></p>
+          ${govBodyHtml}
 
           <h3 style="color: #ef4444; font-size: 13px; margin-top: 18px; margin-bottom: 4px;">Executive Members</h3>
-          <p style="margin: 3px 0;"><b>Shail Shah</b></p>
-          <p style="margin: 3px 0;"><b>Arpit Patel</b></p>
-          <p style="margin: 3px 0;"><b>Dr. Chintan Modi</b></p>
-          <p style="margin: 3px 0;"><b>Radhe Pandya</b></p>
-          <p style="margin: 3px 0;"><b>Rushi Vyas</b></p>
-          <p style="margin: 3px 0;"><b>Nikunj Mojidra</b></p>
-          <p style="margin: 3px 0;"><b>Vishal Aghera</b></p>
-          <p style="margin: 3px 0;"><b>Smt. Priti Parikh</b></p>
-          <p style="margin: 3px 0;"><b>Smt. Vidya Mahida</b></p>
+          ${execMembersHtml}
         </div>
 
         <!-- Right Content -->
         <div style="flex: 1; padding-left: 36px; padding-top: 16px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 32px;">
-            <div style="font-size: 15px;"><b>Receipt No:</b> #${data.receiptNo}</div>
+            <div style="font-size: 15px;"><b>Receipt No:</b> ${receiptNo}</div>
             <div style="font-size: 15px;"><b>Date:</b> ${data.date}</div>
           </div>
 
@@ -75,8 +86,8 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
           <div style="font-size: 17px; line-height: 2;">
             <p>Received with thanks from <b>${data.memberName}</b> (Flat No: <b>${data.flatNo}</b>)</p>
             <p>The sum of <b>₹${data.amount.toLocaleString("en-IN")}</b></p>
-            <p>Towards: <b>${typeLabel}</b></p>
-            <p>Payment Mode: <b>Online / Cash</b></p>
+            <p>Towards: <b>${typeLabel}${periodStr}</b></p>
+            <p>Payment Mode: <b>${modeStr}</b></p>
           </div>
 
           <div style="margin-top: 80px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -93,14 +104,14 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
 
       <!-- Bottom Logo -->
       <div style="position: absolute; bottom: 24px; right: 24px;">
-        <span style="font-family: sans-serif; font-weight: 900; color: #84cc16; font-size: 28px; letter-spacing: -1px;">SWATI</span>
+        <span style="font-family: sans-serif; font-weight: 900; color: #84cc16; font-size: 28px; letter-spacing: -1px;">${config.logo}</span>
       </div>
     </div>
   `
 
   document.body.appendChild(wrapper)
   const canvas = await html2canvas(container, {
-    scale: 1.5,
+    scale: 2,
     useCORS: true,
     backgroundColor: "#ffffff",
     logging: false,
@@ -115,7 +126,7 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
         else reject(new Error("Failed to generate image"))
       },
       "image/jpeg",
-      0.82
+      0.92
     )
   })
 }

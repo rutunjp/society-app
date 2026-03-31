@@ -15,6 +15,8 @@ export interface Payment {
   amount: number
   status: "paid" | "pending"
   date: string            // ISO format: YYYY-MM-DD
+  period: string          // Financial year: "2025-26"
+  payment_mode: string    // "cash" | "online" | "upi" | "cheque"
 }
 
 export interface Event {

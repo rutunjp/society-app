@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   UsersIcon,
   CurrencyRupeeIcon,
@@ -8,11 +8,13 @@ import {
   ReceiptPercentIcon,
   HomeIcon,
   ArrowRightOnRectangleIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: HomeIcon },
   { href: "/members", label: "Members", icon: UsersIcon },
+  { href: "/maintenance", label: "Maintenance", icon: BanknotesIcon },
   { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
@@ -22,7 +24,6 @@ import { signOut } from "next-auth/react"
 
 export default function Nav() {
   const pathname = usePathname()
-  const router = useRouter()
 
   async function handleLogout() {
     await signOut({ callbackUrl: "/login" })

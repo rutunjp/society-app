@@ -95,7 +95,7 @@ export default function MembersPage() {
         }
         if (fileInputRef.current) fileInputRef.current.value = ""
       },
-      error: (err: any) => {
+      error: (err: Error) => {
         toast.error(`CSV Parsing error: ${err.message}`, { id: "csv-upload" })
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
