@@ -7,11 +7,11 @@ export async function validateMember(data: {
   phone?: string
   email?: string
   type?: string
-}): Promise<string | null> {
+}, excludeId?: string): Promise<string | null> {
   const { name, flat_no, phone, email, type } = data
 
-  if (!name || !flat_no || !phone || !email || !type) {
-    return "All fields are required: name, flat_no, phone, email, type"
+  if (!name || !flat_no || !phone || !type) {
+    return "All fields are required: name, flat_no, phone, type"
   }
 
   if (!["owner", "tenant"].includes(type)) {
@@ -21,7 +21,7 @@ export async function validateMember(data: {
   // Check flat_no uniqueness
   const rows = await getAllRows("Members")
   const duplicate = rows.find(
-    (row) => row[2]?.toLowerCase() === flat_no.toLowerCase()
+    (row) => row[2]?.toLowerCase() === flat_no.toLowerCase() && row[0] !== excludeId
   )
   if (duplicate) {
     return `flat_no '${flat_no}' already exists`

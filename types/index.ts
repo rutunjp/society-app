@@ -3,7 +3,7 @@ export interface Member {
   name: string
   flat_no: string
   phone: string
-  email: string
+  email?: string
   type: "owner" | "tenant"
 }
 

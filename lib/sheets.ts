@@ -130,3 +130,31 @@ export async function deleteRow(sheetName: string, id: string): Promise<void> {
     },
   })
 }
+
+// Updates a specific row by its unique ID
+export async function updateRowById(
+  sheetName: string,
+  id: string,
+  row: string[]
+): Promise<void> {
+  const rows = await getAllRows(sheetName)
+  const rowIndex = rows.findIndex(r => r[0] === id)
+  if (rowIndex === -1) {
+    throw new Error(`Record with ID ${id} not found`)
+  }
+
+  // Row 1 is header, so rowIndex 0 is row 2
+  const sheetRowNumber = rowIndex + 2
+  const auth = getAuth()
+  const sheets = google.sheets({ version: "v4", auth })
+  const spreadsheetId = getSheetId()
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!A${sheetRowNumber}`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [row],
+    },
+  })
+}

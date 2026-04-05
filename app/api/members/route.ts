@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAllRows, appendRow, getNextId, deleteRow } from "@/lib/sheets"
+import { getAllRows, appendRow, getNextId, deleteRow, updateRowById } from "@/lib/sheets"
 import { validateMember } from "@/lib/validators"
 import { Member } from "@/types"
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
       body.name,
       body.flat_no,
       body.phone,
-      body.email,
+      body.email || "",
       body.type,
     ]
     await appendRow("Members", row)
@@ -50,10 +50,39 @@ export async function POST(req: NextRequest) {
       name: body.name,
       flat_no: body.flat_no,
       phone: body.phone,
-      email: body.email,
+      email: body.email || "",
       type: body.type,
     }
     return NextResponse.json({ success: true, data: member }, { status: 201 })
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Unknown error"
+    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 })
+
+    const body = await req.json()
+    const error = await validateMember(body, id)
+    if (error) {
+      return NextResponse.json({ success: false, error }, { status: 400 })
+    }
+
+    const row: string[] = [
+      id,
+      body.name,
+      body.flat_no,
+      body.phone,
+      body.email || "",
+      body.type,
+    ]
+    await updateRowById("Members", id, row)
+
+    return NextResponse.json({ success: true })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error"
     return NextResponse.json({ success: false, error: msg }, { status: 500 })

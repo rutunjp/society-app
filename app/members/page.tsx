@@ -6,7 +6,7 @@ import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
-import { TrashIcon } from "@heroicons/react/24/outline"
+import { TrashIcon, PencilSquareIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline"
 import { Member } from "@/types"
 import { toast } from "react-hot-toast"
 
@@ -19,6 +19,11 @@ export default function MembersPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const [editingMember, setEditingMember] = useState<Member | null>(null)
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filterType, setFilterType] = useState<string>("all")
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -36,7 +41,21 @@ export default function MembersPage() {
   useEffect(() => { fetchMembers() }, [])
 
   function openModal() {
+    setEditingMember(null)
     setForm({ ...EMPTY_FORM })
+    setError("")
+    setModalOpen(true)
+  }
+
+  function openEditModal(member: Member) {
+    setEditingMember(member)
+    setForm({
+      name: member.name,
+      flat_no: member.flat_no,
+      phone: member.phone,
+      email: member.email || "",
+      type: member.type
+    })
     setError("")
     setModalOpen(true)
   }
@@ -46,8 +65,11 @@ export default function MembersPage() {
     setSubmitting(true)
     setError("")
     try {
-      const res = await fetch("/api/members", {
-        method: "POST",
+      const url = editingMember ? `/api/members?id=${editingMember.id}` : "/api/members"
+      const method = editingMember ? "PUT" : "POST"
+      
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       })
@@ -55,10 +77,10 @@ export default function MembersPage() {
       if (data.success) {
         setModalOpen(false)
         fetchMembers()
-        toast.success("Member added securely!")
+        toast.success(editingMember ? "Member updated successfully!" : "Member added securely!")
       } else {
-        setError(data.error || "Failed to add member")
-        toast.error(data.error || "Failed to add member")
+        setError(data.error || "Failed to save member")
+        toast.error(data.error || "Failed to save member")
       }
     } catch {
       setError("Network error")
@@ -134,27 +156,48 @@ export default function MembersPage() {
           title="Members"
           subtitle={`${members.length} registered members`}
           action={
-            <div className="flex gap-2">
-              <input 
-                type="file" 
-                accept=".csv" 
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-                title="Expects CSV with headers: name, flat_no, phone, email, type"
+            <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search members..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-64"
+                />
+              </div>
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
               >
-                Import CSV
-              </button>
-              <button
-                onClick={openModal}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-              >
-                + Add Member
-              </button>
+                <option value="all">All Types</option>
+                <option value="owner">Owners</option>
+                <option value="tenant">Tenants</option>
+              </select>
+              <div className="flex gap-2">
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  className="hidden" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex-1 md:flex-none"
+                  title="Expects CSV with headers: name, flat_no, phone, email, type"
+                >
+                  Import CSV
+                </button>
+                <button
+                  onClick={openModal}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors flex-1 md:flex-none"
+                >
+                  + Add Member
+                </button>
+              </div>
             </div>
           }
         />
@@ -181,35 +224,57 @@ export default function MembersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {members.map((m) => (
-                  <tr key={m.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-semibold text-indigo-700">{m.flat_no}</td>
-                    <td className="px-4 py-3 text-gray-900">{m.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.phone}</td>
-                    <td className="px-4 py-3 text-gray-600">{m.email || "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        m.type === "owner"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-purple-100 text-purple-800"
-                      }`}>
-                        {m.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => confirmDelete(m.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
-                        <TrashIcon className="w-5 h-5 inline-block" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {members
+                  .filter(m => {
+                    const matchesSearch = 
+                      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      m.flat_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      m.phone.includes(searchQuery);
+                    const matchesType = filterType === "all" || m.type === filterType;
+                    return matchesSearch && matchesType;
+                  })
+                  .map((m) => (
+                    <tr key={m.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 font-semibold text-indigo-700">{m.flat_no}</td>
+                      <td className="px-4 py-3 text-gray-900">{m.name}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.phone}</td>
+                      <td className="px-4 py-3 text-gray-600">{m.email || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          m.type === "owner"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-purple-100 text-purple-800"
+                        }`}>
+                          {m.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => openEditModal(m)} 
+                            className="text-indigo-600 hover:text-indigo-800 transition" 
+                            aria-label="Edit"
+                          >
+                            <PencilSquareIcon className="w-5 h-5 inline-block" />
+                          </button>
+                          <button 
+                            onClick={() => confirmDelete(m.id)} 
+                            className="text-red-500 hover:text-red-700 transition" 
+                            aria-label="Delete"
+                          >
+                            <TrashIcon className="w-5 h-5 inline-block" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
             </div>
           </div>
         )}
 
-        <Modal title="Add Member" open={modalOpen} onClose={() => setModalOpen(false)}>
+        <Modal title={editingMember ? "Edit Member" : "Add Member"} open={modalOpen} onClose={() => setModalOpen(false)}>
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
               { label: "Full Name", key: "name", type: "text", placeholder: "Rahul Sharma" },
@@ -259,7 +324,7 @@ export default function MembersPage() {
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
-                {submitting ? "Adding..." : "Add Member"}
+                {submitting ? (editingMember ? "Updating..." : "Adding...") : (editingMember ? "Update Member" : "Add Member")}
               </button>
             </div>
           </form>
