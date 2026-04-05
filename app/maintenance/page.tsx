@@ -19,6 +19,11 @@ import {
   CheckCircleIcon,
   ShareIcon,
   PlusCircleIcon,
+  MagnifyingGlassIcon,
+  ChevronUpDownIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  FunnelIcon,
 } from "@heroicons/react/24/outline"
 
 interface MemberWithPayment {
@@ -49,6 +54,14 @@ export default function MaintenancePage() {
     date: new Date().toISOString().split("T")[0],
     payment_mode: "upi" as PaymentMode,
   })
+
+  // Search, Filter & Sort
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "pending" | "no-entry">("all")
+  const [sortConfig, setSortConfig] = useState<{
+    key: "flat" | "name" | "amount" | "date"
+    direction: "asc" | "desc"
+  }>({ key: "flat", direction: "asc" })
 
   // Receipt preview
   const [receiptPayment, setReceiptPayment] = useState<{
@@ -87,6 +100,61 @@ export default function MaintenancePage() {
       return { member: m, payment: payment || null }
     })
   }, [members, payments, selectedPeriod])
+
+  const filteredAndSortedPayments = useMemo(() => {
+    let list = [...memberPayments]
+
+    // 1. Filter by Status
+    if (statusFilter !== "all") {
+      list = list.filter((mp) => {
+        if (statusFilter === "paid") return mp.payment?.status === "paid"
+        if (statusFilter === "pending") return mp.payment?.status === "pending"
+        if (statusFilter === "no-entry") return !mp.payment
+        return true
+      })
+    }
+
+    // 2. Filter by Search
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      list = list.filter(
+        (mp) =>
+          mp.member.name.toLowerCase().includes(q) ||
+          mp.member.flat_no.toLowerCase().includes(q)
+      )
+    }
+
+    // 3. Sort
+    list.sort((a, b) => {
+      let valA: string | number = ""
+      let valB: string | number = ""
+
+      switch (sortConfig.key) {
+        case "flat":
+          valA = a.member.flat_no
+          valB = b.member.flat_no
+          break
+        case "name":
+          valA = a.member.name
+          valB = b.member.name
+          break
+        case "amount":
+          valA = a.payment?.amount || config.maintenanceAmount
+          valB = b.payment?.amount || config.maintenanceAmount
+          break
+        case "date":
+          valA = a.payment?.date || ""
+          valB = b.payment?.date || ""
+          break
+      }
+
+      if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1
+      if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1
+      return 0
+    })
+
+    return list
+  }, [memberPayments, searchQuery, statusFilter, sortConfig, config.maintenanceAmount])
 
   const stats = useMemo(() => {
     const total = memberPayments.length
@@ -279,12 +347,16 @@ export default function MaintenancePage() {
     setSelectedIds(next)
   }
 
-  function toggleSelectAll() {
-    if (selectedIds.size === memberPayments.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(memberPayments.map(mp => mp.member.id)))
-    }
+  function toggleSort(key: "flat" | "name" | "amount" | "date") {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }))
+  }
+
+  function SortIcon({ iky }: { iky: string }) {
+    if (sortConfig.key !== iky) return <ChevronUpDownIcon className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
+    return sortConfig.direction === "asc" ? <ChevronUpIcon className="w-4 h-4 text-indigo-600" /> : <ChevronDownIcon className="w-4 h-4 text-indigo-600" />
   }
 
   function openMarkPaid(mp: MemberWithPayment) {
@@ -308,25 +380,52 @@ export default function MaintenancePage() {
           title="Maintenance Collection"
           subtitle={`FY ${selectedPeriod} · ₹${config.maintenanceAmount.toLocaleString("en-IN")} per flat`}
           action={
-            <div className="flex gap-2 flex-wrap">
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                {financialYears.map((fy) => (
-                  <option key={fy} value={fy}>
-                    FY {fy}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleGeneratePending}
-                disabled={generatingPending || loading}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors"
-              >
-                {generatingPending ? "Generating..." : "Generate Pending"}
-              </button>
+            <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto mt-4 lg:mt-0">
+              <div className="flex gap-2">
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                >
+                  {financialYears.map((fy) => (
+                    <option key={fy} value={fy}>
+                      FY {fy}
+                    </option>
+                  ))}
+                </select>
+                <div className="relative flex-1 lg:w-64">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search name or flat..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full shadow-sm"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1 lg:w-40">
+                  <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full shadow-sm appearance-none"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="paid">Paid Only</option>
+                    <option value="pending">Pending</option>
+                    <option value="no-entry">No Entry</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleGeneratePending}
+                  disabled={generatingPending || loading}
+                  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors shadow-sm whitespace-nowrap"
+                >
+                  {generatingPending ? "Generating..." : "Generate Pending"}
+                </button>
+              </div>
             </div>
           }
         />
@@ -379,27 +478,52 @@ export default function MaintenancePage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[600px]">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr className="text-left text-gray-500">
                     <th className="px-4 py-3 font-medium w-10">
                       <input 
                         type="checkbox" 
-                        checked={selectedIds.size === memberPayments.length && memberPayments.length > 0}
-                        onChange={toggleSelectAll}
+                        checked={selectedIds.size === filteredAndSortedPayments.length && filteredAndSortedPayments.length > 0}
+                        onChange={() => {
+                          if (selectedIds.size === filteredAndSortedPayments.length) setSelectedIds(new Set())
+                          else setSelectedIds(new Set(filteredAndSortedPayments.map(mp => mp.member.id)))
+                        }}
                         className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </th>
-                    <th className="px-4 py-3 font-medium">Flat</th>
-                    <th className="px-4 py-3 font-medium">Member</th>
-                    <th className="px-4 py-3 font-medium">Amount</th>
+                    <th className="px-4 py-3 font-medium group cursor-pointer" onClick={() => toggleSort("flat")}>
+                      <div className="flex items-center gap-1.5">
+                        Flat <SortIcon iky="flat" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-medium group cursor-pointer" onClick={() => toggleSort("name")}>
+                      <div className="flex items-center gap-1.5">
+                        Member <SortIcon iky="name" />
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 font-medium group cursor-pointer" onClick={() => toggleSort("amount")}>
+                      <div className="flex items-center gap-1.5">
+                        Amount <SortIcon iky="amount" />
+                      </div>
+                    </th>
                     <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium group cursor-pointer" onClick={() => toggleSort("date")}>
+                      <div className="flex items-center gap-1.5">
+                        Date <SortIcon iky="date" />
+                      </div>
+                    </th>
                     <th className="px-4 py-3 font-medium">Mode</th>
-                    <th className="px-4 py-3 font-medium text-right">Actions</th>
+                    <th className="px-4 py-3 font-medium text-right uppercase tracking-wider text-[10px] font-bold">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {memberPayments.map((mp) => {
+                  {filteredAndSortedPayments.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-12 text-center text-gray-400">
+                        No results found matching your search and filter.
+                      </td>
+                    </tr>
+                  ) : filteredAndSortedPayments.map((mp) => {
                     const isPaid = mp.payment?.status === "paid"
                     const isPending = mp.payment?.status === "pending"
                     const noEntry = !mp.payment
