@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { XMarkIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline"
-import { generateReceiptImage, ReceiptData } from "@/lib/pdf-generator"
+import { generateReceiptPDF, ReceiptData } from "@/lib/pdf-generator"
 import { toast } from "react-hot-toast"
 
 interface ReceiptPreviewProps {
@@ -17,7 +17,7 @@ export default function ReceiptPreview({
   receiptData,
   phoneNumber,
 }: ReceiptPreviewProps) {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [blobRef, setBlobRef] = useState<Blob | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
@@ -25,35 +25,34 @@ export default function ReceiptPreview({
   async function handleGenerate() {
     setGenerating(true)
     try {
-      const blob = await generateReceiptImage(receiptData)
+      const blob = await generateReceiptPDF(receiptData)
       const url = URL.createObjectURL(blob)
-      setImageUrl(url)
+      setPdfUrl(url)
       setBlobRef(blob)
       setGenerated(true)
     } catch {
-      toast.error("Failed to generate receipt image")
+      toast.error("Failed to generate receipt PDF")
     } finally {
       setGenerating(false)
     }
   }
 
   function handleDownload() {
-    if (!imageUrl) return
+    if (!pdfUrl) return
     const a = document.createElement("a")
-    a.href = imageUrl
-    a.download = `Receipt_${receiptData.receiptNo}.jpg`
+    a.href = pdfUrl
+    const safeReceiptNo = receiptData.receiptNo.replace(/\//g, "-")
+    const safeMemberName = receiptData.memberName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_")
+    a.download = `Receipt_${safeReceiptNo}_${safeMemberName}.pdf`
     a.click()
-    toast.success("Receipt image downloaded!")
+    toast.success("Receipt PDF downloaded!")
   }
 
-  function handleWhatsApp() {
+  async function handleWhatsApp() {
     if (!blobRef) {
       toast.error("Generate receipt first")
       return
     }
-
-    // Download first
-    handleDownload()
 
     // Build WhatsApp message
     const typeLabel =
@@ -62,24 +61,47 @@ export default function ReceiptPreview({
         : "Maintenance"
     const periodStr = receiptData.period ? ` for FY ${receiptData.period}` : ""
 
-    const text = `Hello ${receiptData.memberName},\n\nThis is a confirmation that we have received your payment of ₹${receiptData.amount.toLocaleString("en-IN")} towards ${typeLabel}${periodStr} on ${receiptData.date}.\n\n*This is an electronically generated receipt.*\n\nPlease find the receipt image attached to this message.\n\nThank you!\nSociety Committee`
+    const text = `Hello ${receiptData.memberName},\n\nThis is a confirmation that we have received your payment of ₹${receiptData.amount.toLocaleString("en-IN")} towards ${typeLabel}${periodStr} on ${receiptData.date}.\n\n*This is an electronically generated receipt.*\n\nPlease find the receipt PDF attached.\n\nThank you!\nSociety Committee`
+
+    // 1. Try Native Web Share API (Best for Mobile)
+    if (typeof navigator !== "undefined" && navigator.canShare) {
+      const safeReceiptNo = receiptData.receiptNo.replace(/\//g, "-")
+      const safeMemberName = receiptData.memberName.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_")
+      const fileName = `Receipt_${safeReceiptNo}_${safeMemberName}.pdf`
+      const file = new File([blobRef], fileName, { type: "application/pdf" })
+      const shareData = {
+        title: "Payment Receipt",
+        text: text,
+        files: [file],
+      }
+      if (navigator.canShare(shareData)) {
+        try {
+          await navigator.share(shareData)
+          return
+        } catch (error) {
+          if ((error as Error).name !== "AbortError") {
+            console.error("Error sharing:", error)
+          }
+          return
+        }
+      }
+    }
+
+    // 2. Fallback (Download + WhatsApp Web)
+    handleDownload()
 
     let phoneNum = phoneNumber?.replace(/\D/g, "") || ""
     if (phoneNum.length === 10) {
       phoneNum = `91${phoneNum}`
     }
 
-    setTimeout(() => {
-      window.open(
-        `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`,
-        "_blank"
-      )
-    }, 500)
+    const waUrl = `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`
+    window.open(waUrl, "_blank", "noopener,noreferrer")
   }
 
   function handleClose() {
-    if (imageUrl) URL.revokeObjectURL(imageUrl)
-    setImageUrl(null)
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl)
+    setPdfUrl(null)
     setBlobRef(null)
     setGenerated(false)
     onClose()
@@ -119,7 +141,7 @@ export default function ReceiptPreview({
                 Generate Receipt
               </h3>
               <p className="text-sm text-gray-500 mb-6 max-w-sm">
-                Create a receipt image for{" "}
+                Create a receipt PDF for{" "}
                 <strong>₹{receiptData.amount.toLocaleString("en-IN")}</strong>{" "}
                 payment by {receiptData.memberName}
               </p>
@@ -152,19 +174,18 @@ export default function ReceiptPreview({
                     Generating...
                   </span>
                 ) : (
-                  "Generate Receipt Image"
+                  "Generate Receipt PDF"
                 )}
               </button>
             </div>
           ) : (
             <div>
-              {imageUrl && (
-                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageUrl}
-                    alt="Payment Receipt"
-                    className="w-full"
+              {pdfUrl && (
+                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm h-[500px]">
+                  <iframe
+                    src={`${pdfUrl}#toolbar=0`}
+                    title="Payment Receipt PDF"
+                    className="w-full h-full border-0"
                   />
                 </div>
               )}

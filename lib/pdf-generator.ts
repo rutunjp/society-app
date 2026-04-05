@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas"
+import { jsPDF } from "jspdf"
 import { SOCIETY_CONFIG } from "./society-config"
 
 export interface ReceiptData {
@@ -14,8 +15,8 @@ export interface ReceiptData {
   receivedBy: string
 }
 
-/** Generates a JPEG blob of the payment receipt */
-export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
+/** Generates a PDF blob of the payment receipt */
+export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
   const config = SOCIETY_CONFIG
   const typeLabel = data.paymentType === "event" ? data.eventName : "Maintenance"
   const periodStr = data.period ? ` (FY ${data.period})` : ""
@@ -119,14 +120,11 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
   })
   document.body.removeChild(wrapper)
 
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) resolve(blob)
-        else reject(new Error("Failed to generate image"))
-      },
-      "image/jpeg",
-      0.92
-    )
-  })
+  const imgData = canvas.toDataURL("image/jpeg", 0.95)
+  const pdf = new jsPDF("p", "mm", "a4")
+  const pdfWidth = pdf.internal.pageSize.getWidth()
+  const pdfHeight = (canvas.height * pdfWidth) / canvas.width
+  
+  pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight)
+  return pdf.output("blob")
 }
