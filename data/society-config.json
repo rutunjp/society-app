@@ -1,0 +1,45 @@
+{
+  "name": "Swati Society House Owners Association",
+  "subtitle": "A & B - Blocks",
+  "address": "Next to Sama Sports Complex, New Sama Road, Sama, Vadodara – 390 024",
+  "email": "swatisociety@gmail.com",
+  "logo": "SWATI",
+  "maintenanceAmount": 1500,
+  "governingBody": [
+    {
+      "role": "President",
+      "name": "M S Kapoor"
+    },
+    {
+      "role": "Vice-President",
+      "name": "H K Parmar"
+    },
+    {
+      "role": "Secretary",
+      "name": "B J Mahida"
+    },
+    {
+      "role": "Asst. Secretary",
+      "name": "M J Shah"
+    },
+    {
+      "role": "Treasurer",
+      "name": "A S Pandya"
+    },
+    {
+      "role": "Asst Treasurer",
+      "name": "K V Solanki"
+    }
+  ],
+  "executiveMembers": [
+    "Shail Shah",
+    "Arpit Patel",
+    "Dr. Chintan Modi",
+    "Radhe Pandya",
+    "Rushi Vyas",
+    "Nikunj Mojidra",
+    "Vishal Aghera",
+    "Smt. Priti Parikh",
+    "Smt. Vidya Mahida"
+  ]
+}

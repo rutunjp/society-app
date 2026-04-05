@@ -29,6 +29,7 @@ interface MemberWithPayment {
 export default function MaintenancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [config, setConfig] = useState(SOCIETY_CONFIG)
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState(getCurrentFinancialYear())
   const financialYears = useMemo(() => getFinancialYears(), [])
@@ -52,12 +53,14 @@ export default function MaintenancePage() {
 
   async function fetchData() {
     setLoading(true)
-    const [pRes, mRes] = await Promise.all([
+    const [pRes, mRes, cRes] = await Promise.all([
       fetch("/api/payments").then((r) => r.json()),
       fetch("/api/members").then((r) => r.json()),
+      fetch("/api/config").then((r) => r.json()).catch(() => null),
     ])
     if (pRes.success) setPayments(pRes.data)
     if (mRes.success) setMembers(mRes.data)
+    if (cRes && cRes.maintenanceAmount) setConfig(cRes)
     setLoading(false)
   }
 
@@ -86,10 +89,10 @@ export default function MaintenancePage() {
     const collected = memberPayments
       .filter((mp) => mp.payment?.status === "paid")
       .reduce((sum, mp) => sum + (mp.payment?.amount || 0), 0)
-    const expected = total * SOCIETY_CONFIG.maintenanceAmount
+    const expected = total * config.maintenanceAmount
     const pct = total > 0 ? Math.round((paid / total) * 100) : 0
     return { total, paid, pending, collected, expected, pct }
-  }, [memberPayments])
+  }, [memberPayments, config.maintenanceAmount])
 
   // Mark as paid — create new payment OR update existing pending
   async function handleMarkPaid() {
@@ -128,7 +131,7 @@ export default function MaintenancePage() {
             member_id: member.id,
             type: "maintenance",
             event_id: "",
-            amount: SOCIETY_CONFIG.maintenanceAmount,
+            amount: config.maintenanceAmount,
             status: "paid",
             date: markPaidForm.date,
             period: selectedPeriod,
@@ -172,7 +175,7 @@ export default function MaintenancePage() {
             member_id: member.id,
             type: "maintenance",
             event_id: "",
-            amount: SOCIETY_CONFIG.maintenanceAmount,
+            amount: config.maintenanceAmount,
             status: "pending",
             date: new Date().toISOString().split("T")[0],
             period: selectedPeriod,
@@ -216,7 +219,7 @@ export default function MaintenancePage() {
       <main className="flex-1 p-4 md:p-8 overflow-hidden">
         <PageHeader
           title="Maintenance Collection"
-          subtitle={`FY ${selectedPeriod} · ₹${SOCIETY_CONFIG.maintenanceAmount.toLocaleString("en-IN")} per flat`}
+          subtitle={`FY ${selectedPeriod} · ₹${config.maintenanceAmount.toLocaleString("en-IN")} per flat`}
           action={
             <div className="flex gap-2 flex-wrap">
               <select
@@ -324,7 +327,7 @@ export default function MaintenancePage() {
                         <td className="px-4 py-3 font-semibold text-gray-900">
                           ₹
                           {(
-                            mp.payment?.amount || SOCIETY_CONFIG.maintenanceAmount
+                            mp.payment?.amount || config.maintenanceAmount
                           ).toLocaleString("en-IN")}
                         </td>
                         <td className="px-4 py-3">
@@ -402,7 +405,7 @@ export default function MaintenancePage() {
                   Maintenance for FY {selectedPeriod} ·{" "}
                   <strong>
                     ₹
-                    {SOCIETY_CONFIG.maintenanceAmount.toLocaleString(
+                    {config.maintenanceAmount.toLocaleString(
                       "en-IN"
                     )}
                   </strong>

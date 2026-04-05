@@ -2,10 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    background-image: radial-gradient(circle at top, #f8fafc 0%, #f1f5f9 100%);
+    background-attachment: fixed;
+  }
+  
+  ::selection {
+    @apply bg-indigo-500/30 text-indigo-900;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
 
 input, select, textarea {
-  @apply text-gray-900;
+  @apply text-gray-900 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none;
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/50 p-6 transition-all;
+  }
+  
+  .form-label {
+    @apply block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1;
+  }
+  
+  .form-input {
+    @apply w-full px-4 py-3 bg-white/50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium transition-all focus:bg-white focus:shadow-[0_4px_20px_rgb(0,0,0,0.05)] placeholder:text-slate-400;
+  }
+  
+  .btn-primary {
+    @apply px-6 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/25 hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:pointer-events-none;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all;
+  }
 }

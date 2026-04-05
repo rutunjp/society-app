@@ -9,6 +9,7 @@ import {
   HomeIcon,
   ArrowRightOnRectangleIcon,
   BanknotesIcon,
+  CogIcon,
 } from "@heroicons/react/24/outline"
 
 const navItems = [
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
+  { href: "/config", label: "Configuration", icon: CogIcon },
 ]
 
 import { signOut } from "next-auth/react"
@@ -38,20 +40,25 @@ export default function Nav() {
           <p className="text-xs text-gray-400 mt-0.5">Committee Dashboard</p>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
           {navItems.map(({ href, label, icon: Icon }) => {
             const active = pathname === href
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                   active
-                    ? "bg-indigo-600 text-white"
-                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
                 }`}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
+                <div className={`relative flex items-center justify-center`}>
+                  {active && (
+                    <div className="absolute -left-7 w-1.5 h-6 bg-indigo-500 rounded-r-full" />
+                  )}
+                  <Icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${active ? "scale-110" : "group-hover:scale-110"}`} />
+                </div>
                 {label}
               </Link>
             )
