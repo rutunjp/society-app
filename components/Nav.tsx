@@ -3,7 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   UsersIcon,
-  CurrencyRupeeIcon,
+  // CurrencyRupeeIcon,
   CalendarDaysIcon,
   ReceiptPercentIcon,
   HomeIcon,
@@ -16,7 +16,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: HomeIcon },
   { href: "/members", label: "Members", icon: UsersIcon },
   { href: "/maintenance", label: "Maintenance", icon: BanknotesIcon },
-  { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
+  // { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
   { href: "/config", label: "Configuration", icon: CogIcon },

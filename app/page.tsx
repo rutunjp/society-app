@@ -59,7 +59,7 @@ export default function LandingPage() {
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
               <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl ring-1 ring-inset ring-emerald-500/20">📱</div>
               <h3 className="text-xl font-bold mb-3 text-slate-900 tracking-tight">Instant WhatsApp Receipts</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">Stop handwriting receipts. Generate a professional PDF in 1-click and blast it directly to the resident's WhatsApp.</p>
+              <p className="text-slate-500 font-medium leading-relaxed">Stop handwriting receipts. Generate a professional PDF in 1-click and blast it directly to the resident&apos;s WhatsApp.</p>
             </div>
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
               <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 text-2xl ring-1 ring-inset ring-amber-500/20">📋</div>

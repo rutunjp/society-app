@@ -1,5 +1,6 @@
 "use client"
 import { signIn } from "next-auth/react"
+import Link from "next/link"
 
 export default function LoginPage() {
   return (
@@ -23,6 +24,13 @@ export default function LoginPage() {
           </svg>
           Sign In with Google
         </button>
+
+        <div className="mt-8 text-center text-sm">
+          <span className="text-gray-500">Looking for pricing? </span>
+          <Link href="/pricing" className="text-indigo-600 font-medium hover:text-indigo-500 transition-colors">
+            View our plans
+          </Link>
+        </div>
       </div>
     </div>
   )
