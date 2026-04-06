@@ -91,8 +91,7 @@ async function getReceiptCanvas(data: ReceiptData): Promise<HTMLCanvasElement> {
               <p style="font-size: 11px; color: #666; font-style: italic;">* This is an electronically generated receipt.</p>
             </div>
             <div style="text-align: center;">
-              <div style="height: 50px;"></div>
-              <p style="border-top: 1px solid #333; padding-top: 8px; width: 180px; margin: 0;">Authorized Signatory</p>
+              <p style="padding-top: 8px; width: 180px; margin: 0; font-size: 14px;"><b>For ${config.name}</b><br><span style="font-size: 13px; color: #555;">Society Committee</span></p>
             </div>
           </div>
         </div>

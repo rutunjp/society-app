@@ -25,6 +25,7 @@ import {
   ChevronUpIcon,
   ChevronDownIcon,
   FunnelIcon,
+  BellAlertIcon,
 } from "@heroicons/react/24/outline"
 
 interface MemberWithPayment {
@@ -382,6 +383,18 @@ export default function MaintenancePage() {
     setReceiptPayment({ payment: mp.payment, member: mp.member })
   }
 
+  function handleRemind(mp: MemberWithPayment) {
+    const text = `Hello ${mp.member.name},\n\nThis is a gentle reminder from the Society Committee that your maintenance payment of ₹${config.maintenanceAmount.toLocaleString("en-IN")} for FY ${selectedPeriod} is currently pending.\n\nPlease complete the payment at your earliest convenience.\n\nThank you!`
+    let phoneNum = mp.member.phone?.replace(/\D/g, "") || ""
+    if (phoneNum.length === 10) phoneNum = `91${phoneNum}`
+    if (!phoneNum) {
+      toast.error("No phone number found for this member")
+      return
+    }
+    const waUrl = `https://wa.me/${phoneNum}?text=${encodeURIComponent(text)}`
+    window.open(waUrl, "_blank", "noopener,noreferrer")
+  }
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 pb-20 md:pb-0">
       <Nav />
@@ -598,23 +611,33 @@ export default function MaintenancePage() {
                                 Receipt
                               </button>
                             ) : (
-                              <button
-                                onClick={() => openMarkPaid(mp)}
-                                title="Mark as Paid"
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
-                              >
-                                {noEntry ? (
-                                  <>
-                                    <PlusCircleIcon className="w-3.5 h-3.5" />
-                                    Collect
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircleIcon className="w-3.5 h-3.5" />
-                                    Mark Paid
-                                  </>
-                                )}
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleRemind(mp)}
+                                  title="Send Reminder"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                                >
+                                  <BellAlertIcon className="w-3.5 h-3.5" />
+                                  Remind
+                                </button>
+                                <button
+                                  onClick={() => openMarkPaid(mp)}
+                                  title="Mark as Paid"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                                >
+                                  {noEntry ? (
+                                    <>
+                                      <PlusCircleIcon className="w-3.5 h-3.5" />
+                                      Collect
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircleIcon className="w-3.5 h-3.5" />
+                                      Mark Paid
+                                    </>
+                                  )}
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
