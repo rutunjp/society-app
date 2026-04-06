@@ -8,7 +8,7 @@ export async function validateMember(data: {
   email?: string
   type?: string
 }, excludeId?: string): Promise<string | null> {
-  const { name, flat_no, phone, email, type } = data
+  const { name, flat_no, phone, type } = data
 
   if (!name || !flat_no || !phone || !type) {
     return "All fields are required: name, flat_no, phone, type"

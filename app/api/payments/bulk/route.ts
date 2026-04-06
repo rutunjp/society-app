@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAllRows, appendRows, getNextId, updateRow } from "@/lib/sheets"
 import { validatePayment } from "@/lib/validators"
-import { Payment } from "@/types"
+
 
 export async function POST(req: NextRequest) {
   try {

@@ -106,7 +106,7 @@ export default function EventsPage() {
   // Calculate stats for a given event
   function getEventStats(eventId: string) {
     const collected = payments
-      .filter(p => p.event_id === eventId && p.status === "paid")
+      .filter(p => p.event_id === eventId && p.status?.toLowerCase() === "paid")
       .reduce((sum, p) => sum + p.amount, 0)
       
     const spent = expenses

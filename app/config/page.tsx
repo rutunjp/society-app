@@ -14,7 +14,7 @@ export default function ConfigPage() {
         <div className="mb-10 mt-2">
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Society Configuration</h1>
           <p className="text-sm text-slate-500 mt-2 font-medium">
-            Manage your society's official profile, board members, and committee details.
+            Manage your society&apos;s official profile, board members, and committee details.
           </p>
         </div>
 

@@ -59,7 +59,7 @@ export default function EventDashboard() {
     if (!event) return { collected: 0, spent: 0, balance: 0, progress: 0 }
 
     const collected = payments
-      .filter((p) => p.status === "paid")
+      .filter((p) => p.status?.toLowerCase() === "paid")
       .reduce((sum, p) => sum + p.amount, 0)
       
     const spent = expenses.reduce((sum, e) => sum + e.amount, 0)

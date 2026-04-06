@@ -107,8 +107,8 @@ export default function MaintenancePage() {
     // 1. Filter by Status
     if (statusFilter !== "all") {
       list = list.filter((mp) => {
-        if (statusFilter === "paid") return mp.payment?.status === "paid"
-        if (statusFilter === "pending") return mp.payment?.status === "pending"
+        if (statusFilter === "paid") return mp.payment?.status?.toLowerCase() === "paid"
+        if (statusFilter === "pending") return mp.payment?.status?.toLowerCase() === "pending"
         if (statusFilter === "no-entry") return !mp.payment
         return true
       })
@@ -158,12 +158,12 @@ export default function MaintenancePage() {
 
   const stats = useMemo(() => {
     const total = memberPayments.length
-    const paid = memberPayments.filter((mp) => mp.payment?.status === "paid").length
+    const paid = memberPayments.filter((mp) => mp.payment?.status?.toLowerCase() === "paid").length
     const pending = memberPayments.filter(
-      (mp) => !mp.payment || mp.payment.status === "pending"
+      (mp) => !mp.payment || mp.payment.status?.toLowerCase() === "pending"
     ).length
     const collected = memberPayments
-      .filter((mp) => mp.payment?.status === "paid")
+      .filter((mp) => mp.payment?.status?.toLowerCase() === "paid")
       .reduce((sum, mp) => sum + (mp.payment?.amount || 0), 0)
     const expected = total * config.maintenanceAmount
     const pct = total > 0 ? Math.round((paid / total) * 100) : 0
@@ -178,7 +178,7 @@ export default function MaintenancePage() {
     const { member, payment } = markPaidMember
 
     try {
-      if (payment && payment.status === "pending") {
+      if (payment && payment.status?.toLowerCase() === "pending") {
         // PATCH existing pending payment
         const res = await fetch("/api/payments", {
           method: "PATCH",
@@ -280,7 +280,7 @@ export default function MaintenancePage() {
     setSubmitting(true)
 
     // Separate selected members into those with existing pending payments and those without entries
-    const withPending = memberPayments.filter(mp => selectedIds.has(mp.member.id) && mp.payment?.status === "pending")
+    const withPending = memberPayments.filter(mp => selectedIds.has(mp.member.id) && mp.payment?.status?.toLowerCase() === "pending")
     const withoutEntry = memberPayments.filter(mp => selectedIds.has(mp.member.id) && !mp.payment)
 
     if (withPending.length === 0 && withoutEntry.length === 0) {
@@ -368,7 +368,7 @@ export default function MaintenancePage() {
   }
 
   function openReceipt(mp: MemberWithPayment) {
-    if (!mp.payment || mp.payment.status !== "paid") return
+    if (!mp.payment || mp.payment.status?.toLowerCase() !== "paid") return
     setReceiptPayment({ payment: mp.payment, member: mp.member })
   }
 
@@ -409,7 +409,7 @@ export default function MaintenancePage() {
                   <FunnelIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                   <select
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    onChange={(e) => setStatusFilter(e.target.value as "all" | "paid" | "pending" | "no-entry")}
                     className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full shadow-sm appearance-none"
                   >
                     <option value="all">All Status</option>
@@ -524,8 +524,8 @@ export default function MaintenancePage() {
                       </td>
                     </tr>
                   ) : filteredAndSortedPayments.map((mp) => {
-                    const isPaid = mp.payment?.status === "paid"
-                    const isPending = mp.payment?.status === "pending"
+                    const isPaid = mp.payment?.status?.toLowerCase() === "paid"
+                    const isPending = mp.payment?.status?.toLowerCase() === "pending"
                     const noEntry = !mp.payment
 
                     return (
