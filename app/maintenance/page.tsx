@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import StatusBadge from "@/components/StatusBadge"
 import ReceiptPreview from "@/components/ReceiptPreview"
+import BulkReceiptShare from "@/components/BulkReceiptShare"
 import Modal from "@/components/Modal"
 import { Payment, Member } from "@/types"
 import { toast } from "react-hot-toast"
@@ -54,6 +55,7 @@ export default function MaintenancePage() {
     date: new Date().toISOString().split("T")[0],
     payment_mode: "upi" as PaymentMode,
   })
+  const [bulkShareOpen, setBulkShareOpen] = useState(false)
 
   // Search, Filter & Sort
   const [searchQuery, setSearchQuery] = useState("")
@@ -100,6 +102,14 @@ export default function MaintenancePage() {
       return { member: m, payment: payment || null }
     })
   }, [members, payments, selectedPeriod])
+
+  const bulkItems = useMemo(() => {
+    return Array.from(selectedIds).map(memberId => {
+      const mp = memberPayments.find(m => m.member.id === memberId)
+      if (!mp || !mp.payment || mp.payment.status?.toLowerCase() !== "paid") return null
+      return { payment: mp.payment, member: mp.member, eventName: undefined }
+    }).filter(Boolean) as { payment: Payment; member: Member; eventName?: string }[]
+  }, [selectedIds, memberPayments])
 
   const filteredAndSortedPayments = useMemo(() => {
     let list = [...memberPayments]
@@ -795,6 +805,14 @@ export default function MaintenancePage() {
               </button>
 
               <button
+                onClick={() => setBulkShareOpen(true)}
+                className="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
+              >
+                <ShareIcon className="w-5 h-5" />
+                WhatsApp PDF
+              </button>
+
+              <button
                 onClick={() => setSelectedIds(new Set())}
                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-semibold transition-colors"
               >
@@ -823,6 +841,12 @@ export default function MaintenancePage() {
             }}
           />
         )}
+
+        <BulkReceiptShare
+          open={bulkShareOpen}
+          onClose={() => setBulkShareOpen(false)}
+          items={bulkItems}
+        />
       </main>
     </div>
   )

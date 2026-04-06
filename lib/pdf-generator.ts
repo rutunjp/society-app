@@ -15,8 +15,7 @@ export interface ReceiptData {
   receivedBy: string
 }
 
-/** Generates a PDF blob of the payment receipt */
-export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
+async function getReceiptCanvas(data: ReceiptData): Promise<HTMLCanvasElement> {
   const config = SOCIETY_CONFIG
   const typeLabel = data.paymentType === "event" ? data.eventName : "Maintenance"
   const periodStr = data.period ? ` (FY ${data.period})` : ""
@@ -24,16 +23,12 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
     ? data.paymentMode.charAt(0).toUpperCase() + data.paymentMode.slice(1)
     : "Cash / Online"
 
-  // Receipt number format: SWATI/2025-26/001
   const receiptNo = data.period
     ? `${config.logo}/${data.period}/${data.receiptNo.padStart(3, "0")}`
     : `#${data.receiptNo}`
 
-  // Build governing body HTML
   const govBodyHtml = config.governingBody
-    .map(
-      (m) => `<p style="margin: 4px 0;"><i>${m.role}</i><br><b>${m.name}</b></p>`
-    )
+    .map((m) => `<p style="margin: 4px 0;"><i>${m.role}</i><br><b>${m.name}</b></p>`)
     .join("")
 
   const execMembersHtml = config.executiveMembers
@@ -119,7 +114,21 @@ export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
     width: 800,
   })
   document.body.removeChild(wrapper)
+  return canvas
+}
 
+export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
+  const canvas = await getReceiptCanvas(data)
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob)
+      else reject(new Error("Failed to create blob"))
+    }, "image/png")
+  })
+}
+
+export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
+  const canvas = await getReceiptCanvas(data)
   const imgData = canvas.toDataURL("image/jpeg", 0.95)
   const pdf = new jsPDF("p", "mm", "a4")
   const pdfWidth = pdf.internal.pageSize.getWidth()

@@ -1,173 +1,86 @@
-"use client"
-import { useEffect, useState } from "react"
-import Nav from "@/components/Nav"
-import { Member, Payment, Event, Expense } from "@/types"
-import { getCurrentFinancialYear, getFinancialYears } from "@/lib/society-config"
+import Link from "next/link";
+import Image from "next/image";
 
-function isDateInPeriod(dateStr: string, periodStr: string) {
-  if (periodStr === "all") return true
-  const parts = periodStr.split("-")
-  if (parts.length !== 2) return true
-  
-  const startYear = parseInt(parts[0])
-  const endYear = 2000 + parseInt(parts[1])
-  
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return false
-
-  const startDate = new Date(`${startYear}-04-01T00:00:00`)
-  const endDate = new Date(`${endYear}-03-31T23:59:59`)
-
-  return d >= startDate && d <= endDate
-}
-
-interface StatCardProps {
-  label: string
-  value: string | number
-  sub?: string
-  color: string
-}
-
-function StatCard({ label, value, sub, color }: StatCardProps) {
+export default function LandingPage() {
   return (
-    <div className="relative overflow-hidden bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100/50 p-6 transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-      <div className="absolute top-0 right-0 p-4 opacity-10 blur-2xl rounded-full w-24 h-24 bg-current" style={{ color: 'var(--tw-text-opacity, inherit)' }}></div>
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className={`text-4xl font-extrabold mt-2 tracking-tight ${color}`}>{value}</p>
-      {sub && <p className="text-xs font-medium text-slate-400 mt-2">{sub}</p>}
-    </div>
-  )
-}
-
-export default function DashboardPage() {
-  const [members, setMembers] = useState<Member[]>([])
-  const [payments, setPayments] = useState<Payment[]>([])
-  const [events, setEvents] = useState<Event[]>([])
-  const [expenses, setExpenses] = useState<Expense[]>([])
-
-  const [selectedPeriod, setSelectedPeriod] = useState(getCurrentFinancialYear())
-  const financialYears = getFinancialYears()
-
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/members").then((r) => r.json()),
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/events").then((r) => r.json()),
-      fetch("/api/expenses").then((r) => r.json()),
-    ]).then(([m, p, e, ex]) => {
-      if (m.success) setMembers(m.data)
-      if (p.success) setPayments(p.data)
-      if (e.success) setEvents(e.data)
-      if (ex.success) setExpenses(ex.data)
-    })
-  }, [])
-
-  const filteredPayments = payments.filter((p) => {
-    if (p.type === "maintenance" && p.period) {
-      if (selectedPeriod === "all") return true
-      return p.period === selectedPeriod
-    }
-    return isDateInPeriod(p.date, selectedPeriod)
-  })
-
-  const filteredEvents = events.filter((e) => isDateInPeriod(e.date, selectedPeriod))
-  const filteredExpenses = expenses.filter((ex) => {
-    const event = events.find((e) => e.id === ex.event_id)
-    return event ? isDateInPeriod(event.date, selectedPeriod) : true
-  })
-
-  const totalCollected = filteredPayments
-    .filter((p) => p.status?.toLowerCase() === "paid")
-    .reduce((sum, p) => sum + p.amount, 0)
-
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0)
-
-  function getMemberName(id: string) {
-    const m = members.find((m) => m.id === id)
-    return m ? `${m.flat_no} – ${m.name}` : id
-  }
-
-  return (
-    <div className="flex flex-col md:flex-row min-h-screen pb-20 md:pb-0 font-sans">
-      <Nav />
-      <main className="flex-1 p-4 md:p-8 lg:px-12 overflow-hidden max-w-7xl mx-auto w-full">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 mt-2 gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-2 font-medium">Society overview at a glance</p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500/30">
+      <header className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="SocietyApp Logo" width={32} height={32} className="w-8 h-8 rounded-lg shadow-sm" />
+            <span className="text-xl font-extrabold tracking-tight text-indigo-900">SocietyApp</span>
           </div>
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all text-slate-700"
-          >
-            <option value="all">All Time</option>
-            {financialYears.map((fy) => (
-              <option key={fy} value={fy}>
-                FY {fy}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <StatCard label="Total Members" value={members.length} sub="Registered flats" color="text-indigo-600" />
-          <StatCard
-            label="Amount Collected"
-            value={`₹${totalCollected.toLocaleString("en-IN")}`}
-            sub="Paid maintenance & events"
-            color="text-emerald-600"
-          />
-          <StatCard label="Total Events" value={filteredEvents.length} sub="Festivals & drives" color="text-violet-600" />
-          <StatCard
-            label="Total Expenses"
-            value={`₹${totalExpenses.toLocaleString("en-IN")}`}
-            sub="Across all events"
-            color="text-rose-600"
-          />
-        </div>
-
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-800 tracking-tight">Recent Transactions</h2>
-            <div className="text-xs font-semibold px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full">Last 5 payments ({selectedPeriod === "all" ? "All Time" : `FY ${selectedPeriod}`})</div>
+          <nav className="hidden md:flex gap-8 text-sm font-medium text-slate-600">
+            <a href="#features" className="hover:text-indigo-600 transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-indigo-600 transition-colors hidden">Pricing</a>
+          </nav>
+          <div className="flex gap-4 items-center">
+            <Link href="/login" className="text-sm font-medium text-slate-700 hover:text-indigo-600 transition-colors hidden sm:flex">
+              Sign In
+            </Link>
+            <Link href="/dashboard" className="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-2.5 px-5 rounded-full shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95">
+              Go to Dashboard
+            </Link>
           </div>
-          {filteredPayments.length === 0 ? (
-            <p className="text-sm text-slate-400 py-6 text-center">No transactions recorded in this period.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-100">
-              <table className="w-full text-sm min-w-[500px]">
-                <thead>
-                  <tr className="text-left bg-slate-50/80 text-slate-500 border-b border-slate-100">
-                    <th className="px-4 py-3 font-semibold rounded-tl-xl text-xs uppercase tracking-wider">Member ID</th>
-                    <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Type</th>
-                    <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Amount</th>
-                    <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 font-semibold rounded-tr-xl text-xs uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100/60 bg-white/40">
-                  {filteredPayments.slice(-5).reverse().map((p) => (
-                    <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="px-4 py-3 text-slate-600 font-medium">{getMemberName(p.member_id)}</td>
-                      <td className="px-4 py-3 capitalize text-slate-500">{p.type}</td>
-                      <td className="px-4 py-3 text-slate-900 font-bold">₹{p.amount.toLocaleString("en-IN")}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                          p.status?.toLowerCase() === "paid" ? "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-600/20" : "bg-amber-100 text-amber-800 ring-1 ring-inset ring-amber-600/20"
-                        }`}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-500">{p.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        </div>
+      </header>
+
+      <main className="pt-32 pb-20">
+        <section className="text-center px-4 max-w-4xl mx-auto mt-10 md:mt-16">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold uppercase tracking-wider mb-8 shadow-sm">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            Now live for all communities
+          </div>
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter text-slate-900 mb-8 leading-tight">
+            The modern OS for your <br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-emerald-500">housing society.</span>
+          </h1>
+          <p className="text-lg md:text-xl text-slate-500 font-medium mb-12 max-w-2xl mx-auto leading-relaxed">
+            Take control of your community finances, automate digital receipts, and manage members seamlessly with a beautiful, transparent platform.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link href="/dashboard" className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white text-lg font-bold py-4 px-8 rounded-full shadow-xl shadow-indigo-600/20 transition-transform hover:-translate-y-1">
+              Explore Demo Dashboard
+            </Link>
+            <a href="#features" className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-lg font-bold py-4 px-8 rounded-full shadow-sm transition-transform hover:-translate-y-1">
+              View Features
+            </a>
+          </div>
+        </section>
+
+        <section id="features" className="mt-32 md:mt-48 max-w-7xl mx-auto px-6">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-center mb-16 tracking-tight text-slate-900">Everything you need to run your community.</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+              <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-6 text-2xl ring-1 ring-inset ring-indigo-500/20">📊</div>
+              <h3 className="text-xl font-bold mb-3 text-slate-900 tracking-tight">Financial Clarity</h3>
+              <p className="text-slate-500 font-medium leading-relaxed">Real-time dashboards for collections, expenses, and pending dues. Complete transparency for the entire committee.</p>
             </div>
-          )}
-        </div>
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 text-2xl ring-1 ring-inset ring-emerald-500/20">📱</div>
+              <h3 className="text-xl font-bold mb-3 text-slate-900 tracking-tight">WhatsApp Receipts</h3>
+              <p className="text-slate-500 font-medium leading-relaxed">Instantly generate and blast high-quality digital receipts directly to residents' WhatsApp upon payment confirmation.</p>
+            </div>
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-transform hover:-translate-y-1 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+              <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 text-2xl ring-1 ring-inset ring-amber-500/20">👥</div>
+              <h3 className="text-xl font-bold mb-3 text-slate-900 tracking-tight">Member Directory</h3>
+              <p className="text-slate-500 font-medium leading-relaxed">Keep a standardized record of owners, tenants, and vehicles with fast lookups and strictly structured data.</p>
+            </div>
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t border-slate-200 bg-white py-12 mt-20">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-3">
+            <Image src="/logo.png" alt="SocietyApp Logo" width={24} height={24} className="w-8 h-8 grayscale opacity-50 outline-none" />
+            <span className="font-extrabold tracking-tight text-slate-400">SocietyApp © 2026</span>
+          </div>
+          <div className="text-sm font-medium text-slate-400">
+            A premium solution for modern housing societies.
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

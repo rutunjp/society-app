@@ -8,9 +8,13 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SocietyApp",
-  description: "Housing society management system",
+  title: "SocietyApp - The Modern OS for Your Housing Society",
+  description: "Take control of your community finances, automate digital receipts, and manage members seamlessly with a beautiful, transparent platform.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
   themeColor: "#4f46e5",
   viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
   appleWebApp: {

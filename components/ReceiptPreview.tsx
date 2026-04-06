@@ -1,5 +1,6 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import LoadingSpinner from "@/components/LoadingSpinner"
 import { XMarkIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline"
 import { generateReceiptPDF, ReceiptData } from "@/lib/pdf-generator"
 import { toast } from "react-hot-toast"
@@ -21,6 +22,12 @@ export default function ReceiptPreview({
   const [blobRef, setBlobRef] = useState<Blob | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
+
+  useEffect(() => {
+    if (open && !pdfUrl && !generating) {
+      handleGenerate()
+    }
+  }, [open])
 
   async function handleGenerate() {
     setGenerating(true)
@@ -133,50 +140,14 @@ export default function ReceiptPreview({
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6">
           {!generated ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="bg-indigo-50 p-4 rounded-full mb-4">
-                <ArrowDownTrayIcon className="w-8 h-8 text-indigo-600" />
-              </div>
-              <h3 className="text-base font-medium text-gray-900 mb-1">
-                Generate Receipt
+            <div className="flex flex-col items-center justify-center py-24 text-center">
+              <LoadingSpinner />
+              <h3 className="text-base font-medium text-gray-900 mt-6 mb-1">
+                Generating Receipt
               </h3>
-              <p className="text-sm text-gray-500 mb-6 max-w-sm">
-                Create a receipt PDF for{" "}
-                <strong>₹{receiptData.amount.toLocaleString("en-IN")}</strong>{" "}
-                payment by {receiptData.memberName}
+              <p className="text-sm text-gray-500 max-w-sm">
+                Preparing the official PDF receipt...
               </p>
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-              >
-                {generating ? (
-                  <span className="flex items-center gap-2">
-                    <svg
-                      className="animate-spin h-4 w-4"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Generating...
-                  </span>
-                ) : (
-                  "Generate Receipt PDF"
-                )}
-              </button>
             </div>
           ) : (
             <div>

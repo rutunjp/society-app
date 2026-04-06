@@ -6,6 +6,7 @@ import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import ReceiptPreview from "@/components/ReceiptPreview"
+import BulkReceiptShare from "@/components/BulkReceiptShare"
 import { TrashIcon, ShareIcon } from "@heroicons/react/24/outline"
 import StatusBadge from "@/components/StatusBadge"
 import { Payment, Member, Event } from "@/types"
@@ -51,6 +52,10 @@ export default function PaymentsPage() {
     member: Member
   } | null>(null)
 
+  // Bulk Selection
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string>>(new Set())
+  const [bulkShareOpen, setBulkShareOpen] = useState(false)
+
   async function fetchData() {
     setLoading(true)
     const [pRes, mRes, eRes] = await Promise.all([
@@ -80,6 +85,44 @@ export default function PaymentsPage() {
     }
     return result.reverse()
   }, [payments, filterType, filterPeriod])
+
+  // Reset selection when filters change or data refetches
+  useEffect(() => {
+    setSelectedPaymentIds(new Set())
+  }, [filteredPayments])
+
+  function toggleSelection(id: string) {
+    setSelectedPaymentIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedPaymentIds.size > 0 && selectedPaymentIds.size === filteredPayments.length) {
+      setSelectedPaymentIds(new Set())
+    } else {
+      setSelectedPaymentIds(new Set(filteredPayments.map(p => p.id)))
+    }
+  }
+
+  const bulkItems = useMemo(() => {
+    return Array.from(selectedPaymentIds)
+      .map(id => {
+        const p = payments.find(p => p.id === id)
+        if (!p) return null
+        const member = members.find(m => m.id === p.member_id)
+        if (!member) return null
+        return { 
+          payment: p, 
+          member, 
+          eventName: p.type === 'event' ? getEventName(p.event_id) : undefined 
+        }
+      })
+      .filter(Boolean) as { payment: Payment; member: Member; eventName?: string }[]
+  }, [selectedPaymentIds, payments, members, events])
 
   function openModal() {
     setForm({ ...EMPTY_FORM })
@@ -206,6 +249,24 @@ export default function PaymentsPage() {
           </select>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {selectedPaymentIds.size > 0 && (
+          <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
+            <span className="text-sm font-bold text-indigo-800">
+              {selectedPaymentIds.size} payment{selectedPaymentIds.size > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBulkShareOpen(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm transition-colors"
+              >
+                <ShareIcon className="w-4 h-4" />
+                Bulk WhatsApp Share
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <LoadingSpinner />
         ) : filteredPayments.length === 0 ? (
@@ -214,22 +275,38 @@ export default function PaymentsPage() {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[700px]">
-                <thead className="bg-gray-50">
-                <tr className="text-left text-gray-500">
-                  <th className="px-4 py-3 font-medium">Member</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Event / Period</th>
-                  <th className="px-4 py-3 font-medium">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Mode</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
+                <thead className="bg-gray-50 border-b border-gray-200">
+                <tr className="text-left text-gray-500 uppercase text-xs tracking-wider">
+                  <th className="px-4 py-3 flex items-center h-[45px]">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                      checked={selectedPaymentIds.size > 0 && selectedPaymentIds.size === filteredPayments.length}
+                      onChange={toggleAll}
+                    />
+                  </th>
+                  <th className="px-4 py-3 font-semibold">Member</th>
+                  <th className="px-4 py-3 font-semibold">Type</th>
+                  <th className="px-4 py-3 font-semibold">Event / Period</th>
+                  <th className="px-4 py-3 font-semibold">Amount</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Date</th>
+                  <th className="px-4 py-3 font-semibold">Mode</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-900">{getMemberName(p.member_id)}</td>
+                  <tr key={p.id} className={`transition-colors ${selectedPaymentIds.has(p.id) ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`}>
+                    <td className="px-4 py-3">
+                      <input 
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        checked={selectedPaymentIds.has(p.id)}
+                        onChange={() => toggleSelection(p.id)}
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">{getMemberName(p.member_id)}</td>
                     <td className="px-4 py-3 capitalize text-gray-600">{p.type}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {p.type === "event"
@@ -447,6 +524,15 @@ export default function PaymentsPage() {
             }}
           />
         )}
+
+        <BulkReceiptShare
+          open={bulkShareOpen}
+          onClose={() => setBulkShareOpen(false)}
+          items={bulkItems}
+          onComplete={() => {
+            setSelectedPaymentIds(new Set())
+          }}
+        />
       </main>
     </div>
   )
