@@ -3,7 +3,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   UsersIcon,
-  // CurrencyRupeeIcon,
+  CurrencyRupeeIcon,
   CalendarDaysIcon,
   ReceiptPercentIcon,
   HomeIcon,
@@ -16,7 +16,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: HomeIcon },
   { href: "/members", label: "Members", icon: UsersIcon },
   { href: "/maintenance", label: "Maintenance", icon: BanknotesIcon },
-  // { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
+  { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
   { href: "/config", label: "Configuration", icon: CogIcon },
@@ -85,14 +85,14 @@ export default function Nav() {
       </header>
 
       {/* Mobile Bottom Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex overflow-x-auto no-scrollbar shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           return (
             <Link
               key={href}
               href={href}
-              className={`flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
+              className={`flex-none min-w-[72px] flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${
                 active ? "text-indigo-600" : "text-gray-500"
               }`}
             >

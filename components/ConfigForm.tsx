@@ -326,21 +326,22 @@ export default function ConfigForm() {
         )}
 
         {/* Floating Save Button */}
-        <div className="fixed bottom-8 right-8 z-50">
+        <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[60]">
           <button
             type="submit"
             disabled={saving}
-            className="btn-primary !px-8 !py-4 flex items-center gap-3 shadow-2xl"
+            className="btn-primary !px-5 md:!px-8 !py-3 md:!py-4 flex items-center gap-2 md:gap-3 shadow-2xl"
           >
             {saving ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Saving Changes...
+                <span className="hidden md:inline">Saving Changes...</span>
+                <span className="md:hidden">Saving...</span>
               </>
             ) : (
               <>
                 <CheckIcon className="w-5 h-5" />
-                Save Changes
+                <span>Save Changes</span>
               </>
             )}
           </button>
