@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
@@ -13,6 +14,8 @@ import { toast } from "react-hot-toast"
 const EMPTY_FORM = { name: "", expected_amount: "", date: "" }
 
 export default function EventsPage() {
+  const { hasPermission } = useSociety()
+  const canManageEvents = hasPermission("manage_events")
   const [events, setEvents] = useState<Event[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -128,12 +131,14 @@ export default function EventsPage() {
           title="Events"
           subtitle="Manage festivals and fund collections"
           action={
-            <button
-              onClick={openModal}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              + New Event
-            </button>
+            canManageEvents ? (
+              <button
+                onClick={openModal}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                + New Event
+              </button>
+            ) : null
           }
         />
 
@@ -158,13 +163,15 @@ export default function EventsPage() {
                         <h3 className="font-semibold text-lg text-gray-900 group-hover:text-indigo-600 transition-colors">{ev.name}</h3>
                         <p className="text-sm text-gray-500 mt-1">{ev.date}</p>
                       </div>
-                      <button 
-                        onClick={() => confirmDelete(ev.id)} 
-                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition" 
-                        aria-label="Delete Event"
-                      >
-                        <TrashIcon className="w-5 h-5" />
-                      </button>
+                      {canManageEvents && (
+                        <button 
+                          onClick={() => confirmDelete(ev.id)} 
+                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition" 
+                          aria-label="Delete Event"
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 mt-2">

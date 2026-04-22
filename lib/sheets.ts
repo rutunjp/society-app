@@ -17,10 +17,64 @@ function getSheetId(): string {
   return id
 }
 
+function getSheetsClient() {
+  const auth = getAuth()
+  return google.sheets({ version: "v4", auth })
+}
+
+export async function ensureSheetWithHeaders(
+  sheetName: string,
+  headers: string[]
+): Promise<void> {
+  const sheets = getSheetsClient()
+  const spreadsheetId = getSheetId()
+  const metadata = await sheets.spreadsheets.get({ spreadsheetId })
+  const existingSheet = metadata.data.sheets?.find(
+    (sheet) => sheet.properties?.title === sheetName
+  )
+
+  if (!existingSheet) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [
+          {
+            addSheet: {
+              properties: {
+                title: sheetName,
+              },
+            },
+          },
+        ],
+      },
+    })
+  }
+
+  const headerResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${sheetName}!A1:Z1`,
+  })
+
+  const existingHeaders = (headerResponse.data.values?.[0] as string[]) || []
+  const headersMatch =
+    existingHeaders.length >= headers.length &&
+    headers.every((header, index) => existingHeaders[index] === header)
+
+  if (!headersMatch) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A1`,
+      valueInputOption: "RAW",
+      requestBody: {
+        values: [headers],
+      },
+    })
+  }
+}
+
 // Returns all data rows (excludes header row 1)
 export async function getAllRows(sheetName: string): Promise<string[][]> {
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   const response = await sheets.spreadsheets.values.get({
@@ -33,8 +87,7 @@ export async function getAllRows(sheetName: string): Promise<string[][]> {
 
 // Appends one row to the sheet
 export async function appendRow(sheetName: string, row: string[]): Promise<void> {
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   await sheets.spreadsheets.values.append({
@@ -49,8 +102,7 @@ export async function appendRow(sheetName: string, row: string[]): Promise<void>
 
 // Appends multiple rows to the sheet in a single batch request
 export async function appendRows(sheetName: string, rows: string[][]): Promise<void> {
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   await sheets.spreadsheets.values.append({
@@ -70,8 +122,7 @@ export async function updateRow(
   dataIndex: number,
   row: string[]
 ): Promise<void> {
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   const sheetRowNumber = dataIndex + 2  // +1 for header, +1 for 1-based index
@@ -98,8 +149,7 @@ export async function getNextId(sheetName: string): Promise<string> {
 
 // Deletes a row by its primary ID
 export async function deleteRow(sheetName: string, id: string): Promise<void> {
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   const sheetMetadata = await sheets.spreadsheets.get({ spreadsheetId })
@@ -145,8 +195,7 @@ export async function updateRowById(
 
   // Row 1 is header, so rowIndex 0 is row 2
   const sheetRowNumber = rowIndex + 2
-  const auth = getAuth()
-  const sheets = google.sheets({ version: "v4", auth })
+  const sheets = getSheetsClient()
   const spreadsheetId = getSheetId()
 
   await sheets.spreadsheets.values.update({

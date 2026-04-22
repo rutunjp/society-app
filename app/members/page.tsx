@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react"
 import Papa from "papaparse"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
@@ -13,6 +14,8 @@ import { toast } from "react-hot-toast"
 const EMPTY_FORM = { name: "", flat_no: "", phone: "", email: "", type: "owner" }
 
 export default function MembersPage() {
+  const { hasPermission } = useSociety()
+  const canManageMembers = hasPermission("manage_members")
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -176,7 +179,8 @@ export default function MembersPage() {
                 <option value="owner">Owners</option>
                 <option value="tenant">Tenants</option>
               </select>
-              <div className="flex gap-2">
+              {canManageMembers && (
+                <div className="flex gap-2">
                 <input 
                   type="file" 
                   accept=".csv" 
@@ -197,7 +201,8 @@ export default function MembersPage() {
                 >
                   + Add Member
                 </button>
-              </div>
+                </div>
+              )}
             </div>
           }
         />
@@ -250,20 +255,24 @@ export default function MembersPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => openEditModal(m)} 
-                            className="text-indigo-600 hover:text-indigo-800 transition" 
-                            aria-label="Edit"
-                          >
-                            <PencilSquareIcon className="w-5 h-5 inline-block" />
-                          </button>
-                          <button 
-                            onClick={() => confirmDelete(m.id)} 
-                            className="text-red-500 hover:text-red-700 transition" 
-                            aria-label="Delete"
-                          >
-                            <TrashIcon className="w-5 h-5 inline-block" />
-                          </button>
+                          {canManageMembers && (
+                            <>
+                              <button 
+                                onClick={() => openEditModal(m)} 
+                                className="text-indigo-600 hover:text-indigo-800 transition" 
+                                aria-label="Edit"
+                              >
+                                <PencilSquareIcon className="w-5 h-5 inline-block" />
+                              </button>
+                              <button 
+                                onClick={() => confirmDelete(m.id)} 
+                                className="text-red-500 hover:text-red-700 transition" 
+                                aria-label="Delete"
+                              >
+                                <TrashIcon className="w-5 h-5 inline-block" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>

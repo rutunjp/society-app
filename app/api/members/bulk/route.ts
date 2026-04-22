@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
+import { hasAuthFailure, requireAppContext } from "@/lib/auth"
 import { getNextId, appendRows } from "@/lib/sheets"
+import { withSocietyId } from "@/lib/tenant"
 import { validateMember } from "@/lib/validators"
 import { Member } from "@/types"
 
+const MEMBER_SOCIETY_COLUMN = 6
+
 export async function POST(req: NextRequest) {
+  const appContext = await requireAppContext("manage_members")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
     const body = await req.json()
     const { members } = body
@@ -14,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     // Validate individually (basic structure validation)
     for (const m of members) {
-      const error = await validateMember(m)
+      const error = await validateMember({ ...m, society_id: appContext.user.society_id })
       if (error) {
          // return first validation error caught
          return NextResponse.json({ success: false, error: `Row error for ${m.name || "Unknown"}: ${error}` }, { status: 400 })
@@ -30,17 +37,18 @@ export async function POST(req: NextRequest) {
 
     for (const m of members) {
       const id = String(currentId++)
-      rows.push([
+      rows.push(withSocietyId([
         id,
         m.name,
         m.flat_no,
         m.phone || "",
         m.email || "",
         m.type || "owner",
-      ])
+      ], appContext.user.society_id, MEMBER_SOCIETY_COLUMN))
       
       resultingMembers.push({
         id,
+        society_id: appContext.user.society_id,
         name: m.name,
         flat_no: m.flat_no,
         phone: m.phone || "",

@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useMemo } from "react"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import StatusBadge from "@/components/StatusBadge"
@@ -34,9 +35,11 @@ interface MemberWithPayment {
 }
 
 export default function MaintenancePage() {
+  const { activeSociety, hasPermission } = useSociety()
+  const canManagePayments = hasPermission("manage_payments")
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<Member[]>([])
-  const [config, setConfig] = useState(SOCIETY_CONFIG)
+  const [config, setConfig] = useState(activeSociety || SOCIETY_CONFIG)
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState(getCurrentFinancialYear())
   const financialYears = useMemo(() => getFinancialYears(), [])
@@ -77,21 +80,25 @@ export default function MaintenancePage() {
 
   async function fetchData() {
     setLoading(true)
-    const [pRes, mRes, cRes] = await Promise.all([
+    const [pRes, mRes] = await Promise.all([
       fetch("/api/payments").then((r) => r.json()),
       fetch("/api/members").then((r) => r.json()),
-      fetch("/api/config").then((r) => r.json()).catch(() => null),
     ])
     if (pRes.success) setPayments(pRes.data)
     if (mRes.success) setMembers(mRes.data)
-    if (cRes && cRes.maintenanceAmount) setConfig(cRes)
     setLoading(false)
   }
 
   useEffect(() => {
     document.title = "Maintenance | SocietyApp"
     fetchData()
-  }, [])
+  }, [activeSociety?.id])
+
+  useEffect(() => {
+    if (activeSociety) {
+      setConfig(activeSociety)
+    }
+  }, [activeSociety])
 
   // Build merged member + payment list for selected period
   const memberPayments: MemberWithPayment[] = useMemo(() => {
@@ -441,13 +448,15 @@ export default function MaintenancePage() {
                     <option value="no-entry">No Entry</option>
                   </select>
                 </div>
-                <button
-                  onClick={handleGeneratePending}
-                  disabled={generatingPending || loading}
-                  className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors shadow-sm whitespace-nowrap"
-                >
-                  {generatingPending ? "Generating..." : "Generate Pending"}
-                </button>
+                {canManagePayments && (
+                  <button
+                    onClick={handleGeneratePending}
+                    disabled={generatingPending || loading}
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 transition-colors shadow-sm whitespace-nowrap"
+                  >
+                    {generatingPending ? "Generating..." : "Generate Pending"}
+                  </button>
+                )}
               </div>
             </div>
           }
@@ -504,15 +513,17 @@ export default function MaintenancePage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr className="text-left text-gray-500">
                     <th className="px-4 py-3 font-medium w-10">
-                      <input 
-                        type="checkbox" 
-                        checked={selectedIds.size === filteredAndSortedPayments.length && filteredAndSortedPayments.length > 0}
-                        onChange={() => {
-                          if (selectedIds.size === filteredAndSortedPayments.length) setSelectedIds(new Set())
-                          else setSelectedIds(new Set(filteredAndSortedPayments.map(mp => mp.member.id)))
-                        }}
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
+                      {canManagePayments && (
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.size === filteredAndSortedPayments.length && filteredAndSortedPayments.length > 0}
+                          onChange={() => {
+                            if (selectedIds.size === filteredAndSortedPayments.length) setSelectedIds(new Set())
+                            else setSelectedIds(new Set(filteredAndSortedPayments.map(mp => mp.member.id)))
+                          }}
+                          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      )}
                     </th>
                     <th className="px-4 py-3 font-medium group cursor-pointer" onClick={() => toggleSort("flat")}>
                       <div className="flex items-center gap-1.5">
@@ -563,12 +574,14 @@ export default function MaintenancePage() {
                         }`}
                       >
                         <td className="px-4 py-3">
-                          <input 
-                            type="checkbox" 
-                            checked={selectedIds.has(mp.member.id)}
-                            onChange={() => toggleSelect(mp.member.id)}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
+                          {canManagePayments && (
+                            <input 
+                              type="checkbox" 
+                              checked={selectedIds.has(mp.member.id)}
+                              onChange={() => toggleSelect(mp.member.id)}
+                              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          )}
                         </td>
                         <td className="px-4 py-3 font-semibold text-indigo-700">
                           {mp.member.flat_no}
@@ -610,7 +623,7 @@ export default function MaintenancePage() {
                                 <ShareIcon className="w-3.5 h-3.5" />
                                 Receipt
                               </button>
-                            ) : (
+                            ) : canManagePayments ? (
                               <>
                                 <button
                                   onClick={() => handleRemind(mp)}
@@ -638,7 +651,8 @@ export default function MaintenancePage() {
                                   )}
                                 </button>
                               </>
-                            )}
+                            ) : null
+                            }
                           </div>
                         </td>
                       </tr>
@@ -800,7 +814,7 @@ export default function MaintenancePage() {
         </Modal>
 
         {/* Bulk Actions Sticky Bar */}
-        {selectedIds.size > 0 && (
+        {canManagePayments && selectedIds.size > 0 && (
           <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[90%] md:w-auto bg-gray-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6 animate-in slide-in-from-bottom-10 fade-in duration-300">
             <div className="flex items-center gap-3 pr-6 border-r border-gray-700">
               <span className="bg-indigo-600 text-white w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold">

@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
@@ -20,6 +21,8 @@ const EXPENSE_CATEGORIES = [
 ]
 
 export default function ExpensesPage() {
+  const { hasPermission } = useSociety()
+  const canManageExpenses = hasPermission("manage_expenses")
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -181,12 +184,14 @@ export default function ExpensesPage() {
           title="Expenses"
           subtitle="Track spending across events"
           action={
-            <button
-              onClick={openAddModal}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              + Add Expense
-            </button>
+            canManageExpenses ? (
+              <button
+                onClick={openAddModal}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                + Add Expense
+              </button>
+            ) : null
           }
         />
 
@@ -253,22 +258,24 @@ export default function ExpensesPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 max-w-xs truncate">{ex.notes || "—"}</td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => openEditModal(ex)} 
-                          className="text-gray-400 hover:text-indigo-600 transition" 
-                          aria-label="Edit"
-                        >
-                          <PencilSquareIcon className="w-5 h-5 inline-block" />
-                        </button>
-                        <button 
-                          onClick={() => confirmDelete(ex.id)} 
-                          className="text-gray-400 hover:text-red-600 transition" 
-                          aria-label="Delete"
-                        >
-                          <TrashIcon className="w-5 h-5 inline-block" />
-                        </button>
-                      </div>
+                      {canManageExpenses && (
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => openEditModal(ex)} 
+                            className="text-gray-400 hover:text-indigo-600 transition" 
+                            aria-label="Edit"
+                          >
+                            <PencilSquareIcon className="w-5 h-5 inline-block" />
+                          </button>
+                          <button 
+                            onClick={() => confirmDelete(ex.id)} 
+                            className="text-gray-400 hover:text-red-600 transition" 
+                            aria-label="Delete"
+                          >
+                            <TrashIcon className="w-5 h-5 inline-block" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}

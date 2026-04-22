@@ -1,24 +1,29 @@
-import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const configPath = path.join(process.cwd(), 'data', 'society-config.json');
+import { NextResponse } from "next/server"
+import { hasAuthFailure, requireAppContext } from "@/lib/auth"
+import { upsertSocietyConfig } from "@/lib/society-config.server"
 
 export async function GET() {
-  try {
-    const data = await fs.readFile(configPath, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
-  } catch {
-    return NextResponse.json({ error: 'Failed to read config' }, { status: 500 });
-  }
+  const appContext = await requireAppContext("view_society")
+  if (hasAuthFailure(appContext)) return appContext.response
+
+  return NextResponse.json({ success: true, data: appContext.society })
 }
 
 export async function POST(request: Request) {
+  const appContext = await requireAppContext("manage_society")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
-    const body = await request.json();
-    await fs.writeFile(configPath, JSON.stringify(body, null, 2), 'utf-8');
-    return NextResponse.json({ success: true });
+    const body = await request.json()
+    const society = {
+      ...appContext.society,
+      ...body,
+      id: appContext.user.society_id,
+    }
+
+    await upsertSocietyConfig(society)
+    return NextResponse.json({ success: true, data: society })
   } catch {
-    return NextResponse.json({ error: 'Failed to write config' }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Failed to write config" }, { status: 500 })
   }
 }

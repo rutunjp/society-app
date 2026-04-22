@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAllRows, appendRows, getNextId, updateRow } from "@/lib/sheets"
+import { hasAuthFailure, requireAppContext } from "@/lib/auth"
+import { getSocietyConfigStore } from "@/lib/society-config.server"
+import { rowBelongsToSociety, withSocietyId } from "@/lib/tenant"
 import { validatePayment } from "@/lib/validators"
 
+const PAYMENT_SOCIETY_COLUMN = 9
 
 export async function POST(req: NextRequest) {
+  const appContext = await requireAppContext("manage_payments")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
     const { payments } = await req.json()
     if (!Array.isArray(payments) || payments.length === 0) {
@@ -12,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     // Validate all payments
     for (const p of payments) {
-      const error = await validatePayment(p)
+      const error = await validatePayment({ ...p, society_id: appContext.user.society_id })
       if (error) {
         return NextResponse.json({ success: false, error: `Validation failed: ${error}` }, { status: 400 })
       }
@@ -24,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const rows: string[][] = payments.map((p) => {
       const id = String(currentId++)
-      return [
+      return withSocietyId([
         id,
         p.member_id,
         p.type,
@@ -34,7 +41,7 @@ export async function POST(req: NextRequest) {
         p.date,
         p.period || "",
         p.payment_mode || "",
-      ]
+      ], appContext.user.society_id, PAYMENT_SOCIETY_COLUMN)
     })
 
     await appendRows("Payments", rows)
@@ -47,7 +54,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const appContext = await requireAppContext("manage_payments")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
+    const { defaultSocietyId } = await getSocietyConfigStore()
     const { updates } = await req.json()
     if (!Array.isArray(updates) || updates.length === 0) {
       return NextResponse.json({ success: false, error: "Updates array is required" }, { status: 400 })
@@ -63,7 +74,16 @@ export async function PATCH(req: NextRequest) {
       const { id, status, date, payment_mode } = update
       if (!id) continue
 
-      const dataIndex = rows.findIndex((row) => row[0] === id)
+      const dataIndex = rows.findIndex(
+        (row) =>
+          row[0] === id &&
+          rowBelongsToSociety(
+            row,
+            appContext.user.society_id,
+            PAYMENT_SOCIETY_COLUMN,
+            defaultSocietyId
+          )
+      )
       if (dataIndex === -1) continue
 
       const row = [...rows[dataIndex]]
@@ -73,7 +93,11 @@ export async function PATCH(req: NextRequest) {
       if (date) row[6] = date
       if (payment_mode) row[8] = payment_mode
 
-      await updateRow("Payments", dataIndex, row)
+      await updateRow(
+        "Payments",
+        dataIndex,
+        withSocietyId(row, appContext.user.society_id, PAYMENT_SOCIETY_COLUMN)
+      )
     }
 
     return NextResponse.json({ success: true, count: updates.length })

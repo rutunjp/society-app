@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState, useMemo } from "react"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
 import PageHeader from "@/components/PageHeader"
@@ -29,6 +30,8 @@ const EMPTY_FORM = {
 }
 
 export default function PaymentsPage() {
+  const { hasPermission } = useSociety()
+  const canManagePayments = hasPermission("manage_payments")
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -115,10 +118,13 @@ export default function PaymentsPage() {
         if (!p) return null
         const member = members.find(m => m.id === p.member_id)
         if (!member) return null
+        const eventName = p.type === "event"
+          ? events.find((event) => event.id === p.event_id)?.name || "—"
+          : undefined
         return { 
           payment: p, 
           member, 
-          eventName: p.type === 'event' ? getEventName(p.event_id) : undefined 
+          eventName,
         }
       })
       .filter(Boolean) as { payment: Payment; member: Member; eventName?: string }[]
@@ -213,12 +219,14 @@ export default function PaymentsPage() {
           title="Payments"
           subtitle={`${filteredPayments.length} payment records`}
           action={
-            <button
-              onClick={openModal}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
-            >
-              + Add Payment
-            </button>
+            canManagePayments ? (
+              <button
+                onClick={openModal}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              >
+                + Add Payment
+              </button>
+            ) : null
           }
         />
 
@@ -250,7 +258,7 @@ export default function PaymentsPage() {
         </div>
 
         {/* Bulk Actions Bar */}
-        {selectedPaymentIds.size > 0 && (
+        {canManagePayments && selectedPaymentIds.size > 0 && (
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 mb-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2">
             <span className="text-sm font-bold text-indigo-800">
               {selectedPaymentIds.size} payment{selectedPaymentIds.size > 1 ? 's' : ''} selected
@@ -278,12 +286,14 @@ export default function PaymentsPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                 <tr className="text-left text-gray-500 uppercase text-xs tracking-wider">
                   <th className="px-4 py-3 flex items-center h-[45px]">
-                    <input 
-                      type="checkbox" 
-                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                      checked={selectedPaymentIds.size > 0 && selectedPaymentIds.size === filteredPayments.length}
-                      onChange={toggleAll}
-                    />
+                    {canManagePayments && (
+                      <input 
+                        type="checkbox" 
+                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                        checked={selectedPaymentIds.size > 0 && selectedPaymentIds.size === filteredPayments.length}
+                        onChange={toggleAll}
+                      />
+                    )}
                   </th>
                   <th className="px-4 py-3 font-semibold">Member</th>
                   <th className="px-4 py-3 font-semibold">Type</th>
@@ -299,12 +309,14 @@ export default function PaymentsPage() {
                 {filteredPayments.map((p) => (
                   <tr key={p.id} className={`transition-colors ${selectedPaymentIds.has(p.id) ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`}>
                     <td className="px-4 py-3">
-                      <input 
-                        type="checkbox"
-                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
-                        checked={selectedPaymentIds.has(p.id)}
-                        onChange={() => toggleSelection(p.id)}
-                      />
+                      {canManagePayments && (
+                        <input 
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                          checked={selectedPaymentIds.has(p.id)}
+                          onChange={() => toggleSelection(p.id)}
+                        />
+                      )}
                     </td>
                     <td className="px-4 py-3 font-semibold text-gray-900">{getMemberName(p.member_id)}</td>
                     <td className="px-4 py-3 capitalize text-gray-600">{p.type}</td>
@@ -337,9 +349,11 @@ export default function PaymentsPage() {
                             <ShareIcon className="w-5 h-5 inline-block" />
                           </button>
                         )}
-                        <button onClick={() => confirmDelete(p.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
-                          <TrashIcon className="w-5 h-5 inline-block" />
-                        </button>
+                        {canManagePayments && (
+                          <button onClick={() => confirmDelete(p.id)} className="text-red-500 hover:text-red-700 transition" aria-label="Delete">
+                            <TrashIcon className="w-5 h-5 inline-block" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

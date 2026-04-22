@@ -1,6 +1,7 @@
 import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
-import { SOCIETY_CONFIG } from "./society-config"
+import { DEFAULT_SOCIETY_CONFIG } from "./society-config"
+import { SocietyConfig } from "@/types"
 
 export interface ReceiptData {
   receiptNo: string
@@ -15,8 +16,10 @@ export interface ReceiptData {
   receivedBy: string
 }
 
-async function getReceiptCanvas(data: ReceiptData): Promise<HTMLCanvasElement> {
-  const config = SOCIETY_CONFIG
+async function getReceiptCanvas(
+  data: ReceiptData,
+  config: SocietyConfig = DEFAULT_SOCIETY_CONFIG
+): Promise<HTMLCanvasElement> {
   const typeLabel = data.paymentType === "event" ? data.eventName : "Maintenance"
   const periodStr = data.period ? ` (FY ${data.period})` : ""
   const modeStr = data.paymentMode
@@ -116,8 +119,11 @@ async function getReceiptCanvas(data: ReceiptData): Promise<HTMLCanvasElement> {
   return canvas
 }
 
-export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
-  const canvas = await getReceiptCanvas(data)
+export async function generateReceiptImage(
+  data: ReceiptData,
+  config?: SocietyConfig
+): Promise<Blob> {
+  const canvas = await getReceiptCanvas(data, config)
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob)
@@ -126,8 +132,11 @@ export async function generateReceiptImage(data: ReceiptData): Promise<Blob> {
   })
 }
 
-export async function generateReceiptPDF(data: ReceiptData): Promise<Blob> {
-  const canvas = await getReceiptCanvas(data)
+export async function generateReceiptPDF(
+  data: ReceiptData,
+  config?: SocietyConfig
+): Promise<Blob> {
+  const canvas = await getReceiptCanvas(data, config)
   const imgData = canvas.toDataURL("image/jpeg", 0.95)
   const pdf = new jsPDF("p", "mm", "a4")
   const pdfWidth = pdf.internal.pageSize.getWidth()

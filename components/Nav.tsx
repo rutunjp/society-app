@@ -1,6 +1,8 @@
 "use client"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useSociety } from "@/components/Providers"
+import { getRoleLabel } from "@/lib/rbac"
 import {
   UsersIcon,
   CurrencyRupeeIcon,
@@ -19,13 +21,14 @@ const navItems = [
   { href: "/payments", label: "Payments", icon: CurrencyRupeeIcon },
   { href: "/events", label: "Events", icon: CalendarDaysIcon },
   { href: "/expenses", label: "Expenses", icon: ReceiptPercentIcon },
-  { href: "/config", label: "Configuration", icon: CogIcon },
+  { href: "/config", label: "Configuration", icon: CogIcon, permission: "view_society" as const },
 ]
 
 import { signOut } from "next-auth/react"
 
 export default function Nav() {
   const pathname = usePathname()
+  const { activeSociety, currentUser, hasPermission } = useSociety()
 
   async function handleLogout() {
     await signOut({ callbackUrl: "/login" })
@@ -36,12 +39,25 @@ export default function Nav() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 h-screen bg-gray-900 text-white flex-col sticky top-0">
         <div className="px-6 py-5 border-b border-gray-700">
-          <h1 className="text-lg font-bold tracking-tight text-white">🏢 SocietyApp</h1>
+          <h1 className="text-lg font-bold tracking-tight text-white">SocietyApp</h1>
           <p className="text-xs text-gray-400 mt-0.5">Committee Dashboard</p>
+          <div className="mt-4 rounded-xl border border-gray-800 bg-gray-800/60 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Signed Into
+            </p>
+            <p className="mt-2 text-sm font-semibold text-white">
+              {activeSociety?.name || "Loading society..."}
+            </p>
+            <p className="mt-1 text-xs text-gray-400">
+              {currentUser ? getRoleLabel(currentUser.role) : "Checking access..."}
+            </p>
+          </div>
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems
+            .filter((item) => !item.permission || hasPermission(item.permission))
+            .map(({ href, label, icon: Icon }) => {
             const active = pathname === href
             return (
               <Link
@@ -78,15 +94,27 @@ export default function Nav() {
 
       {/* Mobile Top Header */}
       <header className="md:hidden sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-gray-900 text-white shadow-md">
-        <h1 className="text-lg font-bold">🏢 SocietyApp</h1>
-        <button onClick={handleLogout} className="text-gray-400 hover:text-white p-1" aria-label="Logout">
-          <ArrowRightOnRectangleIcon className="w-6 h-6" />
-        </button>
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold">SocietyApp</h1>
+          <p className="truncate text-xs text-gray-400">{activeSociety?.name || "Loading society..."}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {currentUser && (
+            <span className="rounded-md bg-gray-800 px-2 py-1 text-[11px] text-gray-300">
+              {getRoleLabel(currentUser.role)}
+            </span>
+          )}
+          <button onClick={handleLogout} className="text-gray-400 hover:text-white p-1" aria-label="Logout">
+            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+          </button>
+        </div>
       </header>
 
       {/* Mobile Bottom Bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 flex overflow-x-auto no-scrollbar shadow-[0_-2px_10px_rgba(0,0,0,0.05)] pb-[env(safe-area-inset-bottom)]">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems
+          .filter((item) => !item.permission || hasPermission(item.permission))
+          .map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           return (
             <Link

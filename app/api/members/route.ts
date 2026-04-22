@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getAllRows, appendRow, getNextId, deleteRow, updateRowById } from "@/lib/sheets"
+import { hasAuthFailure, requireAppContext } from "@/lib/auth"
+import { getSocietyConfigStore } from "@/lib/society-config.server"
+import { rowBelongsToSociety, withSocietyId } from "@/lib/tenant"
 import { validateMember } from "@/lib/validators"
 import { Member } from "@/types"
+
+const MEMBER_SOCIETY_COLUMN = 6
 
 function rowToMember(row: string[]): Member {
   return {
     id: row[0] || "",
+    society_id: row[6] || "",
     name: row[1] || "",
     flat_no: row[2] || "",
     phone: row[3] || "",
@@ -15,9 +21,25 @@ function rowToMember(row: string[]): Member {
 }
 
 export async function GET() {
+  const appContext = await requireAppContext("view_members")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
+    const { defaultSocietyId } = await getSocietyConfigStore()
     const rows = await getAllRows("Members")
-    const members = rows.map(rowToMember)
+    const members = rows
+      .filter((row) =>
+        rowBelongsToSociety(
+          row,
+          appContext.user.society_id,
+          MEMBER_SOCIETY_COLUMN,
+          defaultSocietyId
+        )
+      )
+      .map((row) => ({
+        ...rowToMember(row),
+        society_id: row[6] || defaultSocietyId,
+      }))
     return NextResponse.json({ success: true, data: members })
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error"
@@ -26,9 +48,13 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const appContext = await requireAppContext("manage_members")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
     const body = await req.json()
-    const error = await validateMember(body)
+    const payload = { ...body, society_id: appContext.user.society_id }
+    const error = await validateMember(payload)
     if (error) {
       const status = error.includes("already exists") ? 409 : 400
       return NextResponse.json({ success: false, error }, { status })
@@ -43,10 +69,14 @@ export async function POST(req: NextRequest) {
       body.email || "",
       body.type,
     ]
-    await appendRow("Members", row)
+    await appendRow(
+      "Members",
+      withSocietyId(row, appContext.user.society_id, MEMBER_SOCIETY_COLUMN)
+    )
 
     const member: Member = {
       id,
+      society_id: appContext.user.society_id,
       name: body.name,
       flat_no: body.flat_no,
       phone: body.phone,
@@ -61,13 +91,33 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const appContext = await requireAppContext("manage_members")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
+    const { defaultSocietyId } = await getSocietyConfigStore()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get("id")
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 })
 
     const body = await req.json()
-    const error = await validateMember(body, id)
+    const rows = await getAllRows("Members")
+    const existingRow = rows.find(
+      (row) =>
+        row[0] === id &&
+        rowBelongsToSociety(
+          row,
+          appContext.user.society_id,
+          MEMBER_SOCIETY_COLUMN,
+          defaultSocietyId
+        )
+    )
+    if (!existingRow) {
+      return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 })
+    }
+
+    const payload = { ...body, society_id: appContext.user.society_id }
+    const error = await validateMember(payload, id)
     if (error) {
       return NextResponse.json({ success: false, error }, { status: 400 })
     }
@@ -80,7 +130,11 @@ export async function PUT(req: NextRequest) {
       body.email || "",
       body.type,
     ]
-    await updateRowById("Members", id, row)
+    await updateRowById(
+      "Members",
+      id,
+      withSocietyId(row, appContext.user.society_id, MEMBER_SOCIETY_COLUMN)
+    )
 
     return NextResponse.json({ success: true })
   } catch (e: unknown) {
@@ -90,10 +144,29 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const appContext = await requireAppContext("manage_members")
+  if (hasAuthFailure(appContext)) return appContext.response
+
   try {
+    const { defaultSocietyId } = await getSocietyConfigStore()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get("id")
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 })
+
+    const rows = await getAllRows("Members")
+    const existingRow = rows.find(
+      (row) =>
+        row[0] === id &&
+        rowBelongsToSociety(
+          row,
+          appContext.user.society_id,
+          MEMBER_SOCIETY_COLUMN,
+          defaultSocietyId
+        )
+    )
+    if (!existingRow) {
+      return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 })
+    }
 
     await deleteRow("Members", id)
     return NextResponse.json({ success: true })

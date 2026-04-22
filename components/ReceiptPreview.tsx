@@ -1,8 +1,9 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import { XMarkIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline"
 import { generateReceiptPDF, ReceiptData } from "@/lib/pdf-generator"
+import { useSociety } from "@/components/Providers"
 import { toast } from "react-hot-toast"
 
 interface ReceiptPreviewProps {
@@ -18,21 +19,16 @@ export default function ReceiptPreview({
   receiptData,
   phoneNumber,
 }: ReceiptPreviewProps) {
+  const { activeSociety } = useSociety()
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [blobRef, setBlobRef] = useState<Blob | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
 
-  useEffect(() => {
-    if (open && !pdfUrl && !generating) {
-      handleGenerate()
-    }
-  }, [open])
-
-  async function handleGenerate() {
+  const handleGenerate = useCallback(async () => {
     setGenerating(true)
     try {
-      const blob = await generateReceiptPDF(receiptData)
+      const blob = await generateReceiptPDF(receiptData, activeSociety || undefined)
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
       setBlobRef(blob)
@@ -42,7 +38,13 @@ export default function ReceiptPreview({
     } finally {
       setGenerating(false)
     }
-  }
+  }, [activeSociety, receiptData])
+
+  useEffect(() => {
+    if (open && !pdfUrl && !generating) {
+      handleGenerate()
+    }
+  }, [generating, handleGenerate, open, pdfUrl])
 
   function handleDownload() {
     if (!pdfUrl) return

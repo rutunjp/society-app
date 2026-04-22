@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import Nav from "@/components/Nav"
+import { useSociety } from "@/components/Providers"
 import { Member, Payment, Event, Expense } from "@/types"
 import { getCurrentFinancialYear, getFinancialYears } from "@/lib/society-config"
 
@@ -40,6 +41,7 @@ function StatCard({ label, value, sub, color }: StatCardProps) {
 }
 
 export default function DashboardPage() {
+  const { activeSociety } = useSociety()
   const [members, setMembers] = useState<Member[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -94,7 +96,9 @@ export default function DashboardPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 mt-2 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Financial Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-2 font-medium">Society overview at a glance</p>
+            <p className="text-sm text-slate-500 mt-2 font-medium">
+              {activeSociety ? `${activeSociety.name} overview at a glance` : "Society overview at a glance"}
+            </p>
           </div>
           <select
             value={selectedPeriod}
