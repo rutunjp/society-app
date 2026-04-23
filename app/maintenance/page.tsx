@@ -855,14 +855,14 @@ export default function MaintenancePage() {
             onClose={() => setReceiptPayment(null)}
             phoneNumber={receiptPayment.member.phone}
             receiptData={{
-              receiptNo: receiptPayment.payment.id,
-              date: receiptPayment.payment.date,
-              memberName: receiptPayment.member.name,
-              flatNo: receiptPayment.member.flat_no,
-              amount: receiptPayment.payment.amount,
+              receiptNo: receiptPayment?.payment?.id || '',
+              date: receiptPayment?.payment?.date || '',
+              memberName: receiptPayment?.member?.name || '',
+              flatNo: receiptPayment?.member?.flat_no || '',
+              amount: receiptPayment?.payment?.amount || 0,
               paymentType: "maintenance",
-              period: receiptPayment.payment.period || undefined,
-              paymentMode: receiptPayment.payment.payment_mode || undefined,
+              period: receiptPayment?.payment?.period || undefined,
+              paymentMode: receiptPayment?.payment?.payment_mode || undefined,
               receivedBy: "Committee",
             }}
           />

@@ -512,18 +512,15 @@ export default function PaymentsPage() {
             onClose={() => setReceiptPayment(null)}
             phoneNumber={receiptPayment.member.phone}
             receiptData={{
-              receiptNo: receiptPayment.payment.id,
-              date: receiptPayment.payment.date,
-              memberName: receiptPayment.member.name,
-              flatNo: receiptPayment.member.flat_no,
-              amount: receiptPayment.payment.amount,
+              receiptNo: receiptPayment?.payment?.id || '',
+              date: receiptPayment?.payment?.date || '',
+              memberName: receiptPayment?.member?.name || '',
+              flatNo: receiptPayment?.member?.flat_no || '',
+              amount: receiptPayment?.payment?.amount || 0,
               paymentType: receiptPayment.payment.type,
-              eventName:
-                receiptPayment.payment.type === "event"
-                  ? getEventName(receiptPayment.payment.event_id || '')
-                  : undefined,
-              period: receiptPayment.payment.period || undefined,
-              paymentMode: receiptPayment.payment.payment_mode || undefined,
+              eventName: receiptPayment?.payment?.type === 'event' ? getEventName(receiptPayment.payment.event_id || '') : undefined,
+              period: receiptPayment?.payment?.period || undefined,
+              paymentMode: receiptPayment?.payment?.payment_mode || undefined,
               receivedBy: "Committee",
             }}
           />
