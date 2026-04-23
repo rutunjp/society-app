@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import Papa from "papaparse"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
@@ -9,10 +9,12 @@ import LoadingSpinner from "@/components/LoadingSpinner"
 import { TrashIcon, PencilSquareIcon, MagnifyingGlassIcon } from "@heroicons/react/24/outline"
 import { Member } from "@/types"
 import { toast } from "react-hot-toast"
+import { useSociety } from "@/components/SocietyProvider"
 
 const EMPTY_FORM = { name: "", flat_no: "", phone: "", email: "", type: "owner" }
 
 export default function MembersPage() {
+  const { activeSociety } = useSociety()
   const [members, setMembers] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -30,15 +32,27 @@ export default function MembersPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
+    if (!activeSociety) return
     setLoading(true)
-    const res = await fetch("/api/members")
-    const data = await res.json()
-    if (data.success) setMembers(data.data)
-    setLoading(false)
-  }
+    try {
+      const res = await fetch(`/api/members?society_id=${activeSociety.id}`)
+      const data = await res.json()
+      if (data.success) {
+        setMembers(data.data)
+      } else {
+        toast.error("Failed to fetch members: " + data.error)
+      }
+    } catch {
+      toast.error("Failed to fetch members")
+    } finally {
+      setLoading(false)
+    }
+  }, [activeSociety])
 
-  useEffect(() => { fetchMembers() }, [])
+  useEffect(() => {
+    fetchMembers()
+  }, [fetchMembers])
 
   function openModal() {
     setEditingMember(null)
@@ -71,7 +85,7 @@ export default function MembersPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, society_id: activeSociety?.id }),
       })
       const data = await res.json()
       if (data.success) {
@@ -100,10 +114,11 @@ export default function MembersPage() {
       skipEmptyLines: true,
       complete: async (results) => {
         try {
+          const membersWithSociety = results.data.map((m: any) => ({ ...m, society_id: activeSociety?.id }))
           const res = await fetch("/api/members/bulk", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ members: results.data }),
+            body: JSON.stringify({ members: membersWithSociety }),
           })
           const data = await res.json()
           if (data.success) {

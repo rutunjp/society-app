@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import { XMarkIcon, PaperAirplaneIcon } from "@heroicons/react/24/outline"
+import { useSociety } from './SocietyProvider';
 import { generateReceiptImage, ReceiptData } from "@/lib/pdf-generator"
 import { Payment, Member } from "@/types"
 import { toast } from "react-hot-toast"
@@ -19,6 +20,7 @@ interface BulkReceiptShareProps {
 }
 
 export default function BulkReceiptShare({ open, onClose, items, onComplete }: BulkReceiptShareProps) {
+  const { activeSociety } = useSociety();
   const [currentIndex, setCurrentIndex] = useState(0)
   const [processing, setProcessing] = useState(false)
 
@@ -51,8 +53,8 @@ export default function BulkReceiptShare({ open, onClose, items, onComplete }: B
         amount: currentItem.payment.amount,
         paymentType: currentItem.payment.type,
         eventName: currentItem.eventName,
-        period: currentItem.payment.period,
-        paymentMode: currentItem.payment.payment_mode,
+        period: currentItem.payment.period || undefined,
+        paymentMode: currentItem.payment.payment_mode || undefined,
         receivedBy: "Committee"
       }
 
@@ -61,7 +63,7 @@ export default function BulkReceiptShare({ open, onClose, items, onComplete }: B
       const text = `Hello ${receiptData.memberName},\n\nThis is a confirmation that we have received your payment of ₹${receiptData.amount.toLocaleString("en-IN")} towards ${typeLabel}${periodStr} on ${receiptData.date}.\n\n*This is an electronically generated receipt.*\n\nThank you!\nSociety Committee`
 
       // 1. Generate image and copy to clipboard
-      const blob = await generateReceiptImage(receiptData)
+      const blob = await generateReceiptImage(receiptData, activeSociety as any)
       try {
         await navigator.clipboard.write([
           new ClipboardItem({ [blob.type]: blob })

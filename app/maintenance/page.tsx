@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import Nav from "@/components/Nav"
 import PageHeader from "@/components/PageHeader"
 import LoadingSpinner from "@/components/LoadingSpinner"
@@ -10,7 +11,6 @@ import Modal from "@/components/Modal"
 import { Payment, Member } from "@/types"
 import { toast } from "react-hot-toast"
 import {
-  SOCIETY_CONFIG,
   getCurrentFinancialYear,
   getFinancialYears,
   PAYMENT_MODES,
@@ -34,9 +34,11 @@ interface MemberWithPayment {
 }
 
 export default function MaintenancePage() {
+  const { activeSociety } = useSociety()
+
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<Member[]>([])
-  const [config, setConfig] = useState(SOCIETY_CONFIG)
+  const [config, setConfig] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [selectedPeriod, setSelectedPeriod] = useState(getCurrentFinancialYear())
   const financialYears = useMemo(() => getFinancialYears(), [])
@@ -75,23 +77,24 @@ export default function MaintenancePage() {
   // Generating pending
   const [generatingPending, setGeneratingPending] = useState(false)
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    if (!activeSociety) return
     setLoading(true)
     const [pRes, mRes, cRes] = await Promise.all([
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/members").then((r) => r.json()),
-      fetch("/api/config").then((r) => r.json()).catch(() => null),
+      fetch(`/api/payments?society_id=${activeSociety.id}`).then((r) => r.json()),
+      fetch(`/api/members?society_id=${activeSociety.id}`).then((r) => r.json()),
+      fetch(`/api/config?society_id=${activeSociety.id}`).then((r) => r.json()).catch(() => null),
     ])
     if (pRes.success) setPayments(pRes.data)
     if (mRes.success) setMembers(mRes.data)
-    if (cRes && cRes.maintenanceAmount) setConfig(cRes)
+    if (cRes && cRes.success) setConfig(cRes)
     setLoading(false)
-  }
+  }, [activeSociety])
 
   useEffect(() => {
     document.title = "Maintenance | SocietyApp"
     fetchData()
-  }, [])
+  }, [fetchData])
 
   // Build merged member + payment list for selected period
   const memberPayments: MemberWithPayment[] = useMemo(() => {
@@ -150,8 +153,8 @@ export default function MaintenancePage() {
           valB = b.member.name
           break
         case "amount":
-          valA = a.payment?.amount || config.maintenanceAmount
-          valB = b.payment?.amount || config.maintenanceAmount
+          valA = a.payment?.amount || ((config?.maintenance_amount || 0) || 0)
+          valB = b.payment?.amount || ((config?.maintenance_amount || 0) || 0)
           break
         case "date":
           valA = a.payment?.date || ""
@@ -165,7 +168,7 @@ export default function MaintenancePage() {
     })
 
     return list
-  }, [memberPayments, searchQuery, statusFilter, sortConfig, config.maintenanceAmount])
+  }, [memberPayments, searchQuery, statusFilter, sortConfig, ((config?.maintenance_amount || 0) || 0)])
 
   const stats = useMemo(() => {
     const total = memberPayments.length
@@ -176,10 +179,10 @@ export default function MaintenancePage() {
     const collected = memberPayments
       .filter((mp) => mp.payment?.status?.toLowerCase() === "paid")
       .reduce((sum, mp) => sum + (mp.payment?.amount || 0), 0)
-    const expected = total * config.maintenanceAmount
+    const expected = total * ((config?.maintenance_amount || 0) || 0)
     const pct = total > 0 ? Math.round((paid / total) * 100) : 0
     return { total, paid, pending, collected, expected, pct }
-  }, [memberPayments, config.maintenanceAmount])
+  }, [memberPayments, (config?.maintenance_amount || 0)])
 
   // Mark as paid — create new payment OR update existing pending
   async function handleMarkPaid() {
@@ -218,7 +221,7 @@ export default function MaintenancePage() {
             member_id: member.id,
             type: "maintenance",
             event_id: "",
-            amount: config.maintenanceAmount,
+            amount: ((config?.maintenance_amount || 0) || 0),
             status: "paid",
             date: markPaidForm.date,
             period: selectedPeriod,
@@ -263,7 +266,7 @@ export default function MaintenancePage() {
             member_id: t.member.id,
             type: "maintenance",
             event_id: "",
-            amount: config.maintenanceAmount,
+            amount: ((config?.maintenance_amount || 0) || 0),
             status: "pending",
             date: new Date().toISOString().split("T")[0],
             period: selectedPeriod,
@@ -329,7 +332,7 @@ export default function MaintenancePage() {
               member_id: mp.member.id,
               type: "maintenance",
               event_id: "",
-              amount: config.maintenanceAmount,
+              amount: ((config?.maintenance_amount || 0) || 0),
               status: "paid",
               date: bulkForm.date,
               period: selectedPeriod,
@@ -384,7 +387,7 @@ export default function MaintenancePage() {
   }
 
   function handleRemind(mp: MemberWithPayment) {
-    const text = `Hello ${mp.member.name},\n\nThis is a gentle reminder from the Society Committee that your maintenance payment of ₹${config.maintenanceAmount.toLocaleString("en-IN")} for FY ${selectedPeriod} is currently pending.\n\nPlease complete the payment at your earliest convenience.\n\nThank you!`
+    const text = `Hello ${mp.member.name},\n\nThis is a gentle reminder from the Society Committee that your maintenance payment of ₹${((config?.maintenance_amount || 0) || 0).toLocaleString("en-IN")} for FY ${selectedPeriod} is currently pending.\n\nPlease complete the payment at your earliest convenience.\n\nThank you!`
     let phoneNum = mp.member.phone?.replace(/\D/g, "") || ""
     if (phoneNum.length === 10) phoneNum = `91${phoneNum}`
     if (!phoneNum) {
@@ -401,7 +404,7 @@ export default function MaintenancePage() {
       <main className="flex-1 p-4 md:p-8 overflow-hidden">
         <PageHeader
           title="Maintenance Collection"
-          subtitle={`FY ${selectedPeriod} · ₹${config.maintenanceAmount.toLocaleString("en-IN")} per flat`}
+          subtitle={`FY ${selectedPeriod} · ₹${((config?.maintenance_amount || 0) || 0).toLocaleString("en-IN")} per flat`}
           action={
             <div className="flex flex-col lg:flex-row gap-3 w-full lg:w-auto mt-4 lg:mt-0">
               <div className="flex gap-2">
@@ -579,7 +582,7 @@ export default function MaintenancePage() {
                         <td className="px-4 py-3 font-semibold text-gray-900">
                           ₹
                           {(
-                            mp.payment?.amount || config.maintenanceAmount
+                            mp.payment?.amount || ((config?.maintenance_amount || 0) || 0)
                           ).toLocaleString("en-IN")}
                         </td>
                         <td className="px-4 py-3">
@@ -667,7 +670,7 @@ export default function MaintenancePage() {
                   Maintenance for FY {selectedPeriod} ·{" "}
                   <strong>
                     ₹
-                    {config.maintenanceAmount.toLocaleString(
+                    {((config?.maintenance_amount || 0) || 0).toLocaleString(
                       "en-IN"
                     )}
                   </strong>
@@ -858,8 +861,8 @@ export default function MaintenancePage() {
               flatNo: receiptPayment.member.flat_no,
               amount: receiptPayment.payment.amount,
               paymentType: "maintenance",
-              period: receiptPayment.payment.period,
-              paymentMode: receiptPayment.payment.payment_mode,
+              period: receiptPayment.payment.period || undefined,
+              paymentMode: receiptPayment.payment.payment_mode || undefined,
               receivedBy: "Committee",
             }}
           />

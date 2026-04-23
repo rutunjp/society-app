@@ -1,55 +1,88 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAllRows, appendRow, getNextId, deleteRow } from "@/lib/sheets"
+import { createClient } from "@/lib/supabase/server"
 import { validateEvent } from "@/lib/validators"
 import { Event } from "@/types"
 
-function rowToEvent(row: string[]): Event {
-  return {
-    id: row[0] || "",
-    name: row[1] || "",
-    expected_amount: parseFloat(row[2]) || 0,
-    date: row[3] || "",
-  }
-}
-
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const rows = await getAllRows("Events")
-    const events = rows.map(rowToEvent)
+    const { searchParams } = new URL(req.url)
+    const societyId = searchParams.get("society_id")
+
+    if (!societyId) {
+      return NextResponse.json({ success: false, error: "society_id required" }, { status: 400 })
+    }
+
+    const supabase = createClient()
+    const { data: events, error } = await supabase
+      .from("events")
+      .select("*")
+      .eq("society_id", societyId)
+      .order("date", { ascending: false })
+
+    if (error) throw error
+
     return NextResponse.json({ success: true, data: events })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const error = await validateEvent(body)
-    if (error) {
-      return NextResponse.json({ success: false, error }, { status: 400 })
+    const errorMsg = await validateEvent(body)
+    if (errorMsg) {
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 })
     }
 
-    const id = await getNextId("Events")
-    const row: string[] = [
-      id,
-      body.name,
-      String(body.expected_amount),
-      body.date,
-    ]
-    await appendRow("Events", row)
+    const supabase = createClient()
+    const { data: event, error } = await supabase
+      .from("events")
+      .insert({
+        society_id: body.society_id,
+        name: body.name,
+        expected_amount: Number(body.expected_amount),
+        date: body.date,
+      })
+      .select()
+      .single()
 
-    const event: Event = {
-      id,
-      name: body.name,
-      expected_amount: Number(body.expected_amount),
-      date: body.date,
-    }
+    if (error) throw error
+
     return NextResponse.json({ success: true, data: event }, { status: 201 })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get("id")
+    if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 })
+
+    const body = await req.json()
+    const errorMsg = await validateEvent(body)
+    if (errorMsg) {
+      return NextResponse.json({ success: false, error: errorMsg }, { status: 400 })
+    }
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("events")
+      .update({
+        name: body.name,
+        expected_amount: Number(body.expected_amount),
+        date: body.date,
+      })
+      .eq("id", id)
+      .eq("society_id", body.society_id)
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
   }
 }
 
@@ -59,10 +92,16 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get("id")
     if (!id) return NextResponse.json({ success: false, error: "ID required" }, { status: 400 })
 
-    await deleteRow("Events", id)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("events")
+      .delete()
+      .eq("id", id)
+
+    if (error) throw error
+
     return NextResponse.json({ success: true })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
   }
 }

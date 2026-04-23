@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getAllRows, appendRows, getNextId, updateRow } from "@/lib/sheets"
+import { createClient } from "@/lib/supabase/server"
 import { validatePayment } from "@/lib/validators"
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,31 +17,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Get starting ID
-    const nextIdStr = await getNextId("Payments")
-    let currentId = parseInt(nextIdStr, 10)
+    const supabase = createClient()
+    const recordsToInsert = payments.map((p: any) => ({
+      society_id: p.society_id,
+      member_id: p.member_id,
+      type: p.type,
+      event_id: p.event_id || null,
+      amount: Number(p.amount),
+      status: p.status,
+      date: p.date,
+      period: p.period || null,
+      payment_mode: p.payment_mode || null,
+    }))
 
-    const rows: string[][] = payments.map((p) => {
-      const id = String(currentId++)
-      return [
-        id,
-        p.member_id,
-        p.type,
-        p.event_id || "",
-        String(p.amount),
-        p.status,
-        p.date,
-        p.period || "",
-        p.payment_mode || "",
-      ]
-    })
+    const { error } = await supabase
+      .from("payments")
+      .insert(recordsToInsert)
 
-    await appendRows("Payments", rows)
+    if (error) throw error
 
-    return NextResponse.json({ success: true, count: rows.length })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+    return NextResponse.json({ success: true, count: recordsToInsert.length })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
   }
 }
 
@@ -53,32 +49,31 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Updates array is required" }, { status: 400 })
     }
 
-    const rows = await getAllRows("Payments")
-    
-    // We update row by row for now, but we do it in parallel for speed if needed.
-    // However, Google Sheets API might rate limit if we do too many individual requests.
-    // For a bulk maintenance mark-as-paid, usually it's < 50-100 flats.
-    
+    const supabase = createClient()
+    let updatedCount = 0
+
+    // Since Supabase RPC or bulk update by id isn't natively straightforward without a custom function,
+    // and this list is usually small (e.g. 50-100 items), we can map over them.
     for (const update of updates) {
-      const { id, status, date, payment_mode } = update
-      if (!id) continue
+      const { id, society_id, status, date, payment_mode } = update
+      if (!id || !society_id) continue
 
-      const dataIndex = rows.findIndex((row) => row[0] === id)
-      if (dataIndex === -1) continue
+      const updatePayload: any = {}
+      if (status) updatePayload.status = status
+      if (date) updatePayload.date = date
+      if (payment_mode) updatePayload.payment_mode = payment_mode
 
-      const row = [...rows[dataIndex]]
-      while (row.length < 9) row.push("")
+      const { error } = await supabase
+        .from("payments")
+        .update(updatePayload)
+        .eq("id", id)
+        .eq("society_id", society_id)
 
-      if (status) row[5] = status
-      if (date) row[6] = date
-      if (payment_mode) row[8] = payment_mode
-
-      await updateRow("Payments", dataIndex, row)
+      if (!error) updatedCount++
     }
 
-    return NextResponse.json({ success: true, count: updates.length })
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error"
-    return NextResponse.json({ success: false, error: msg }, { status: 500 })
+    return NextResponse.json({ success: true, count: updatedCount })
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e.message || "Unknown error" }, { status: 500 })
   }
 }

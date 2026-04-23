@@ -1,5 +1,18 @@
+export interface Society {
+  id: string
+  name: string
+  subtitle?: string
+  address: string
+  email?: string
+  logo?: string
+  maintenance_amount: number
+  governing_body: any[]
+  executive_members: any[]
+}
+
 export interface Member {
   id: string
+  society_id: string
   name: string
   flat_no: string
   phone: string
@@ -9,18 +22,20 @@ export interface Member {
 
 export interface Payment {
   id: string
+  society_id: string
   member_id: string
   type: "maintenance" | "event"
-  event_id: string        // empty string "" if type is maintenance
+  event_id: string | null
   amount: number
   status: "paid" | "pending"
   date: string            // ISO format: YYYY-MM-DD
-  period: string          // Financial year: "2025-26"
-  payment_mode: string    // "cash" | "online" | "upi" | "cheque"
+  period: string | null
+  payment_mode: string | null
 }
 
 export interface Event {
   id: string
+  society_id: string
   name: string
   expected_amount: number
   date: string            // ISO format: YYYY-MM-DD
@@ -28,10 +43,11 @@ export interface Event {
 
 export interface Expense {
   id: string
+  society_id: string
   event_id: string
   title: string
   amount: number
-  notes: string
+  notes: string | null
   category: string
 }
 

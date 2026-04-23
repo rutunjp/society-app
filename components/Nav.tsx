@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   UsersIcon,
   // CurrencyRupeeIcon,
@@ -10,7 +10,10 @@ import {
   ArrowRightOnRectangleIcon,
   BanknotesIcon,
   CogIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline"
+import { useSociety } from "./SocietyProvider"
+import { createClient } from "@/lib/supabase/client"
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: HomeIcon },
@@ -22,13 +25,15 @@ const navItems = [
   { href: "/config", label: "Configuration", icon: CogIcon },
 ]
 
-import { signOut } from "next-auth/react"
-
 export default function Nav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { activeSociety, societies, setActiveSociety } = useSociety()
 
   async function handleLogout() {
-    await signOut({ callbackUrl: "/login" })
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
   }
 
   return (
@@ -36,8 +41,29 @@ export default function Nav() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 h-screen bg-gray-900 text-white flex-col sticky top-0">
         <div className="px-6 py-5 border-b border-gray-700">
-          <h1 className="text-lg font-bold tracking-tight text-white">🏢 SocietyApp</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Committee Dashboard</p>
+          <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">🏢 SocietyApp</h1>
+
+          {societies.length > 1 ? (
+            <div className="mt-3 relative">
+              <select
+                value={activeSociety?.id || ""}
+                onChange={(e) => {
+                  const s = societies.find(s => s.id === e.target.value)
+                  if (s) setActiveSociety(s)
+                }}
+                className="w-full bg-gray-800 text-white text-sm border border-gray-700 rounded-md py-1.5 pl-3 pr-8 appearance-none focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                {societies.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className="absolute right-2 top-2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1 truncate" title={activeSociety?.name}>
+              {activeSociety?.name || "Loading..."}
+            </p>
+          )}
         </div>
 
         <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">

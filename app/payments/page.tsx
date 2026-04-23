@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
@@ -29,6 +30,8 @@ const EMPTY_FORM = {
 }
 
 export default function PaymentsPage() {
+  const { activeSociety } = useSociety()
+
   const [payments, setPayments] = useState<Payment[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -56,18 +59,19 @@ export default function PaymentsPage() {
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string>>(new Set())
   const [bulkShareOpen, setBulkShareOpen] = useState(false)
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    if (!activeSociety) return
     setLoading(true)
     const [pRes, mRes, eRes] = await Promise.all([
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/members").then((r) => r.json()),
-      fetch("/api/events").then((r) => r.json()),
+      fetch(`/api/payments?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/members?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/events?society_id=${activeSociety?.id}`).then((r) => r.json()),
     ])
     if (pRes.success) setPayments(pRes.data)
     if (mRes.success) setMembers(mRes.data)
     if (eRes.success) setEvents(eRes.data)
     setLoading(false)
-  }
+  }, [activeSociety])
 
   useEffect(() => {
     document.title = "Payments | SocietyApp"
@@ -118,7 +122,7 @@ export default function PaymentsPage() {
         return { 
           payment: p, 
           member, 
-          eventName: p.type === 'event' ? getEventName(p.event_id) : undefined 
+          eventName: p.type === 'event' ? getEventName(p.event_id || '') : undefined
         }
       })
       .filter(Boolean) as { payment: Payment; member: Member; eventName?: string }[]
@@ -310,7 +314,7 @@ export default function PaymentsPage() {
                     <td className="px-4 py-3 capitalize text-gray-600">{p.type}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {p.type === "event"
-                        ? getEventName(p.event_id)
+                        ? getEventName(p.event_id || '')
                         : p.period
                         ? `FY ${p.period}`
                         : "—"}
@@ -516,10 +520,10 @@ export default function PaymentsPage() {
               paymentType: receiptPayment.payment.type,
               eventName:
                 receiptPayment.payment.type === "event"
-                  ? getEventName(receiptPayment.payment.event_id)
+                  ? getEventName(receiptPayment.payment.event_id || '')
                   : undefined,
-              period: receiptPayment.payment.period,
-              paymentMode: receiptPayment.payment.payment_mode,
+              period: receiptPayment.payment.period || undefined,
+              paymentMode: receiptPayment.payment.payment_mode || undefined,
               receivedBy: "Committee",
             }}
           />

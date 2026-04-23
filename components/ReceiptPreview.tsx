@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import LoadingSpinner from "@/components/LoadingSpinner"
 import { XMarkIcon, ArrowDownTrayIcon } from "@heroicons/react/24/outline"
+import { useSociety } from './SocietyProvider';
 import { generateReceiptPDF, ReceiptData } from "@/lib/pdf-generator"
 import { toast } from "react-hot-toast"
 
@@ -18,6 +19,7 @@ export default function ReceiptPreview({
   receiptData,
   phoneNumber,
 }: ReceiptPreviewProps) {
+  const { activeSociety } = useSociety();
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [blobRef, setBlobRef] = useState<Blob | null>(null)
   const [generating, setGenerating] = useState(false)
@@ -32,7 +34,7 @@ export default function ReceiptPreview({
   async function handleGenerate() {
     setGenerating(true)
     try {
-      const blob = await generateReceiptPDF(receiptData)
+      const blob = await generateReceiptPDF(receiptData, activeSociety as any)
       const url = URL.createObjectURL(blob)
       setPdfUrl(url)
       setBlobRef(blob)
