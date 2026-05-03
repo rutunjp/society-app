@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
 import ConfirmDialog from "@/components/ConfirmDialog"
@@ -20,6 +21,8 @@ const EXPENSE_CATEGORIES = [
 ]
 
 export default function ExpensesPage() {
+  const { activeSociety } = useSociety()
+
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,18 +50,19 @@ export default function ExpensesPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    if (!activeSociety) return
     setLoading(true)
     const [exRes, evRes] = await Promise.all([
-      fetch("/api/expenses").then((r) => r.json()),
-      fetch("/api/events").then((r) => r.json()),
+      fetch(`/api/expenses?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/events?society_id=${activeSociety?.id}`).then((r) => r.json()),
     ])
     if (exRes.success) setExpenses(exRes.data)
     if (evRes.success) setEvents(evRes.data)
     setLoading(false)
-  }
+  }, [activeSociety])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [fetchData])
 
   function openAddModal() {
     setForm({ 
@@ -105,7 +109,7 @@ export default function ExpensesPage() {
       const res = await fetch("/api/expenses", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, society_id: activeSociety?.id }),
       })
       const data = await res.json()
       if (data.success) {

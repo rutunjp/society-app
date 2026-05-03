@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import { useParams, useRouter } from "next/navigation"
 import Nav from "@/components/Nav"
 import PageHeader from "@/components/PageHeader"
@@ -9,6 +10,8 @@ import { Event, Payment, Expense, Member } from "@/types"
 import StatusBadge from "@/components/StatusBadge"
 
 export default function EventDashboard() {
+  const { activeSociety } = useSociety()
+
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
@@ -23,10 +26,10 @@ export default function EventDashboard() {
     async function fetchDashboardData() {
       setLoading(true)
       const [evRes, payRes, expRes, memRes] = await Promise.all([
-        fetch("/api/events").then((r) => r.json()),
-        fetch("/api/payments").then((r) => r.json()),
-        fetch("/api/expenses").then((r) => r.json()),
-        fetch("/api/members").then((r) => r.json()),
+        fetch(`/api/events?society_id=${activeSociety?.id}`).then((r) => r.json()),
+        fetch(`/api/payments?society_id=${activeSociety?.id}`).then((r) => r.json()),
+        fetch(`/api/expenses?society_id=${activeSociety?.id}`).then((r) => r.json()),
+        fetch(`/api/members?society_id=${activeSociety?.id}`).then((r) => r.json()),
       ])
 
       if (evRes.success) {

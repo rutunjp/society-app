@@ -7,6 +7,14 @@ import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
+export const viewport = {
+  themeColor: "#4f46e5",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export const metadata: Metadata = {
   title: "SocietyApp - The Modern OS for Your Housing Society",
   description: "Take control of your community finances, automate digital receipts, and manage members seamlessly with a beautiful, transparent platform.",
@@ -15,8 +23,8 @@ export const metadata: Metadata = {
     icon: "/logo.png",
     apple: "/logo.png",
   },
-  themeColor: "#4f46e5",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0",
+
+
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSociety } from "./SocietyProvider"
 import { toast } from "react-hot-toast"
 import {
   Cog6ToothIcon,
@@ -17,26 +18,28 @@ interface GoverningBodyMember {
 }
 
 interface Config {
+  id?: string
   name: string
   subtitle: string
   address: string
   email: string
   logo: string
-  maintenanceAmount: number
-  governingBody: GoverningBodyMember[]
-  executiveMembers: string[]
+  maintenance_amount: number
+  governing_body: GoverningBodyMember[]
+  executive_members: string[]
 }
 
 type Tab = "general" | "board" | "executive"
 
 export default function ConfigForm() {
+  const { activeSociety } = useSociety()
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>("general")
 
   useEffect(() => {
-    fetch("/api/config")
+    fetch(`/api/config?society_id=${activeSociety?.id}`)
       .then((res) => res.json())
       .then((data) => {
         setConfig(data)
@@ -51,46 +54,46 @@ export default function ConfigForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!config) return
     const { name, value } = e.target
-    setConfig({ ...config, [name]: name === "maintenanceAmount" ? Number(value) : value })
+    setConfig({ ...config, [name]: name === "maintenance_amount" ? Number(value) : value })
   }
 
   const handleGoverningChange = (index: number, field: keyof GoverningBodyMember, value: string) => {
     if (!config) return
-    const newGov = [...config.governingBody]
+    const newGov = [...config.governing_body]
     newGov[index] = { ...newGov[index], [field]: value }
-    setConfig({ ...config, governingBody: newGov })
+    setConfig({ ...config, governing_body: newGov })
   }
 
   const removeGoverning = (index: number) => {
     if (!config) return
-    const newGov = config.governingBody.filter((_, i) => i !== index)
-    setConfig({ ...config, governingBody: newGov })
+    const newGov = config.governing_body.filter((_, i) => i !== index)
+    setConfig({ ...config, governing_body: newGov })
   }
 
   const handleExecChange = (index: number, value: string) => {
     if (!config) return
-    const newExec = [...config.executiveMembers]
+    const newExec = [...config.executive_members]
     newExec[index] = value
-    setConfig({ ...config, executiveMembers: newExec })
+    setConfig({ ...config, executive_members: newExec })
   }
 
   const removeExecutive = (index: number) => {
     if (!config) return
-    const newExec = config.executiveMembers.filter((_, i) => i !== index)
-    setConfig({ ...config, executiveMembers: newExec })
+    const newExec = config.executive_members.filter((_, i) => i !== index)
+    setConfig({ ...config, executive_members: newExec })
   }
 
   const addGoverning = () => {
     if (!config) return
     setConfig({
       ...config,
-      governingBody: [...config.governingBody, { role: "", name: "" }],
+      governing_body: [...config.governing_body, { role: "", name: "" }],
     })
   }
 
   const addExecutive = () => {
     if (!config) return
-    setConfig({ ...config, executiveMembers: [...config.executiveMembers, ""] })
+    setConfig({ ...config, executive_members: [...config.executive_members, ""] })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,7 +104,7 @@ export default function ConfigForm() {
       const res = await fetch("/api/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
+        body: JSON.stringify({ ...config, id: activeSociety?.id }),
       })
       if (!res.ok) throw new Error("Save failed")
       toast.success("Configuration updated successfully!")
@@ -221,8 +224,8 @@ export default function ConfigForm() {
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                   <input
                     type="number"
-                    name="maintenanceAmount"
-                    value={config.maintenanceAmount}
+                    name="maintenance_amount"
+                    value={config.maintenance_amount}
                     onChange={handleChange}
                     className="form-input pl-8"
                   />
@@ -250,7 +253,7 @@ export default function ConfigForm() {
               </button>
             </div>
             <div className="space-y-4">
-              {config.governingBody.map((member, idx) => (
+              {config.governing_body.map((member, idx) => (
                 <div key={idx} className="flex flex-col sm:flex-row gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100 group">
                   <div className="flex-1">
                     <label className="form-label !mb-1 text-[10px]">Position / Role</label>
@@ -303,7 +306,7 @@ export default function ConfigForm() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {config.executiveMembers.map((member, idx) => (
+              {config.executive_members.map((member, idx) => (
                 <div key={idx} className="relative group">
                   <input
                     type="text"

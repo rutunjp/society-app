@@ -1,5 +1,6 @@
 "use client"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import Link from "next/link"
 import Nav from "@/components/Nav"
 import Modal from "@/components/Modal"
@@ -13,6 +14,8 @@ import { toast } from "react-hot-toast"
 const EMPTY_FORM = { name: "", expected_amount: "", date: "" }
 
 export default function EventsPage() {
+  const { activeSociety } = useSociety()
+
   const [events, setEvents] = useState<Event[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -26,12 +29,13 @@ export default function EventsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
+    if (!activeSociety) return
     setLoading(true)
     const [evRes, payRes, expRes] = await Promise.all([
-      fetch("/api/events").then(r => r.json()),
-      fetch("/api/payments").then(r => r.json()),
-      fetch("/api/expenses").then(r => r.json())
+      fetch(`/api/events?society_id=${activeSociety?.id}`).then(r => r.json()),
+      fetch(`/api/payments?society_id=${activeSociety?.id}`).then(r => r.json()),
+      fetch(`/api/expenses?society_id=${activeSociety?.id}`).then(r => r.json())
     ])
     
     if (evRes.success) setEvents(evRes.data)
@@ -39,9 +43,9 @@ export default function EventsPage() {
     if (expRes.success) setExpenses(expRes.data)
       
     setLoading(false)
-  }
+  }, [activeSociety])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [fetchData])
 
   function openModal() {
     setForm({ ...EMPTY_FORM })

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getNextId, appendRows } from "@/lib/sheets"
+import { createClient } from "@/lib/supabase/server"
 import { validateMember } from "@/lib/validators"
 import { Member } from "@/types"
 
@@ -21,40 +21,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Get the next starting ID
-    let currentId = parseInt(await getNextId("Members"), 10)
-    
-    // Convert to row arrays
-    const rows: string[][] = []
-    const resultingMembers: Member[] = []
+    const supabase = createClient()
+    const recordsToInsert = members.map((m: any) => ({
+      society_id: m.society_id,
+      name: m.name,
+      flat_no: m.flat_no,
+      phone: m.phone || null,
+      email: m.email || null,
+      type: m.type || "owner",
+    }))
 
-    for (const m of members) {
-      const id = String(currentId++)
-      rows.push([
-        id,
-        m.name,
-        m.flat_no,
-        m.phone || "",
-        m.email || "",
-        m.type || "owner",
-      ])
-      
-      resultingMembers.push({
-        id,
-        name: m.name,
-        flat_no: m.flat_no,
-        phone: m.phone || "",
-        email: m.email || "",
-        type: m.type || "owner",
-      })
-    }
+    const { data: resultingMembers, error } = await supabase
+      .from("members")
+      .insert(recordsToInsert)
+      .select()
 
-    await appendRows("Members", rows)
+    if (error) throw error
 
     return NextResponse.json({ success: true, data: resultingMembers }, { status: 201 })
 
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error processing bulk upload"
+  } catch (e: any) {
+    const msg = e.message || "Unknown error processing bulk upload"
     return NextResponse.json({ success: false, error: msg }, { status: 500 })
   }
 }

@@ -28,33 +28,18 @@ A full-stack Housing Society Management Dashboard built with **Next.js 14 (App R
    npm install
    ```
 
-2. **Google Sheets Configuration**
-   - Create a Google Spreadsheet.
-   - You must create the following exact 4 tabs (case-sensitive) within it: `Members`, `Payments`, `Events`, `Expenses`.
-   - Setup a [Google Cloud Service Account](https://cloud.google.com/iam/docs/service-accounts-create) and extract its JSON keys.
-   - **Crucial**: Share your new Google Sheet with the Service Account email (e.g., `account@project.iam.gserviceaccount.com`) as an **Editor**.
+2. **Supabase Database & Auth Configuration**
+   - Create a [Supabase](https://supabase.com/) project.
+   - Run the SQL script located at `supabase/schema.sql` in your Supabase SQL Editor to set up tables, Row Level Security (RLS) policies, and triggers.
+   - Set up Google Auth in Supabase under **Authentication > Providers > Google**. Follow the Supabase instructions to obtain Client ID and Secret from Google Cloud Console and set the authorized redirect URI.
 
-3. **Google OAuth Configuration**
-   - Under your Google Cloud Console, navigate to **APIs & Services > Credentials > Create OAuth Client ID** (Web Application).
-   - Set the authorized redirect URI to: `http://localhost:3000/api/auth/callback/google` (and add your production URL when deployed).
-
-4. **Environment Variables**
+3. **Environment Variables**
    Create a `.env.local` file in the root directory and inject your keys into this structure:
 
    ```env
-   # Google Sheets ID (Found in the URL of your spreadsheet)
-   SHEET_ID="your_google_sheet_id_here"
-   
-   # Google Service Account JSON stringified representation
-   GOOGLE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"... (Insert Full JSON content here)'
-   
-   # Auth Settings
-   NEXTAUTH_URL="http://localhost:3000"
-   NEXTAUTH_SECRET="a-random-secure-string" # Run `openssl rand -base64 32` to generate
-   
-   # Google Client Auth Strings
-   GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
-   GOOGLE_CLIENT_SECRET="your-client-secret"
+   # Supabase Keys (Found in Project Settings > API)
+   NEXT_PUBLIC_SUPABASE_URL="your-project-url"
+   NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
    ```
 
 5. **Start the Development Server**

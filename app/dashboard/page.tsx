@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { useSociety } from "@/components/SocietyProvider"
 import Nav from "@/components/Nav"
 import { Member, Payment, Event, Expense } from "@/types"
 import { getCurrentFinancialYear, getFinancialYears } from "@/lib/society-config"
@@ -40,6 +41,8 @@ function StatCard({ label, value, sub, color }: StatCardProps) {
 }
 
 export default function DashboardPage() {
+  const { activeSociety } = useSociety()
+
   const [members, setMembers] = useState<Member[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [events, setEvents] = useState<Event[]>([])
@@ -49,18 +52,19 @@ export default function DashboardPage() {
   const financialYears = getFinancialYears()
 
   useEffect(() => {
+    if (!activeSociety) return
     Promise.all([
-      fetch("/api/members").then((r) => r.json()),
-      fetch("/api/payments").then((r) => r.json()),
-      fetch("/api/events").then((r) => r.json()),
-      fetch("/api/expenses").then((r) => r.json()),
+      fetch(`/api/members?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/payments?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/events?society_id=${activeSociety?.id}`).then((r) => r.json()),
+      fetch(`/api/expenses?society_id=${activeSociety?.id}`).then((r) => r.json()),
     ]).then(([m, p, e, ex]) => {
       if (m.success) setMembers(m.data)
       if (p.success) setPayments(p.data)
       if (e.success) setEvents(e.data)
       if (ex.success) setExpenses(ex.data)
     })
-  }, [])
+  }, [activeSociety])
 
   const filteredPayments = payments.filter((p) => {
     if (p.type === "maintenance" && p.period) {
